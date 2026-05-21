@@ -1,0 +1,38 @@
+import 'package:flutter/material.dart';
+import '../models/msg_model.dart';
+import '../widgets/chat_bubble.dart';
+
+class MessagesScreen extends StatefulWidget {
+  final List<MsgModel> messages;
+  final VoidCallback? onClose;
+  final VoidCallback? onMenuTap;
+
+  const MessagesScreen({
+    super.key,
+    this.onClose,
+    this.onMenuTap,
+    this.messages = const [],
+  });
+
+  @override
+  State<MessagesScreen> createState() => _MessagesScreenState();
+}
+
+class _MessagesScreenState extends State<MessagesScreen> {
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: ListView.builder(
+        reverse: true,
+        itemCount: widget.messages.length,
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+        itemBuilder: (context, index) {
+          final m = widget.messages.reversed.toList()[index];
+          return m.role != BubbleRole.system
+              ? ChatBubble(text: m.text, role: m.role)
+              : ChatBubble(text: m.text, role: BubbleRole.system);
+        },
+      ),
+    );
+  }
+}
