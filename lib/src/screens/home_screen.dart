@@ -2,15 +2,17 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:marqueer/marqueer.dart';
+import 'package:provider/provider.dart';
+import 'package:swift_agents/src/screens/widgets/animated_avatar_player.dart';
+import 'package:swift_agents/src/screens/widgets/chat_bubble.dart';
+import 'package:swift_agents/src/screens/widgets/chat_input.dart';
+import 'package:swift_agents/src/screens/widgets/top_bar.dart';
 import '../../swift_agents.dart';
 import '../constants/fonts.dart';
 import '../constants/variables.dart';
+import '../controllers/sdk_provider.dart';
 import '../models/msg_model.dart';
 import '../theme/theme.dart';
-import '../widgets/animated_avatar_player.dart';
-import '../widgets/chat_bubble.dart';
-import '../widgets/top_bar.dart';
-import '../widgets/chat_input.dart';
 import 'messages_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -24,46 +26,56 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  List <MsgModel> messages = [];
-
-  void _simulateAgent() {
-    messages.add(MsgModel('AGENT IS SEARCHING...', BubbleRole.system));
-
-
-    Timer(const Duration(seconds: 3), () {
-      if (!mounted) return;
-      setState(() {
-        messages.add(MsgModel('Hey there, give me a second let me search', BubbleRole.agent));
-      });
-
-      Future.delayed(Duration(seconds: 1), (){
-        setState(() {
-          messages.addAll([
-          MsgModel("I couldn't find info on the platform. Please hold; our support team send a response via email.", BubbleRole.agent),
-          MsgModel("May I have your email address?", BubbleRole.agent),
-          ]);
-        });
-      });
-    });
-  }
+  // List <MsgModel> messages = [];
+  //
+  // void _simulateAgent() {
+  //   messages.add(MsgModel('AGENT IS SEARCHING...', BubbleRole.system));
+  //
+  //
+  //   Timer(const Duration(seconds: 3), () {
+  //     if (!mounted) return;
+  //     setState(() {
+  //       messages.add(MsgModel('Hey there, give me a second let me search', BubbleRole.agent));
+  //     });
+  //
+  //     Future.delayed(Duration(seconds: 1), (){
+  //       setState(() {
+  //         messages.addAll([
+  //         MsgModel("I couldn't find info on the platform. Please hold; our support team send a response via email.", BubbleRole.agent),
+  //         MsgModel("May I have your email address?", BubbleRole.agent),
+  //         ]);
+  //       });
+  //     });
+  //   });
+  // }
 
   void _onSubmit(String text) {
-    setState(() => messages.add(MsgModel(text, BubbleRole.user)));
-    _simulateAgent();
+    final sdkProvider = context.read<SdkProvider>();
+
+    // Fallback safely to user email or session token if sessionResponse ID isn't ready
+    // final sessionId = sdkProvider.sessionResponse?.sessionId ?? sdkProvider.client.email;
+    final sessionId = 'Session ${sdkProvider.client.email}';
+
+    sdkProvider.sendMessage(
+      sessionId: sessionId,
+      message: text,
+    );
   }
 
 
   @override
   Widget build(BuildContext context) {
+    final sdkProvider = context.watch<SdkProvider>();
+    final activeMessages = sdkProvider.messages;
     return Column(
       children: [
         TopBar(onMenuTap: widget.onMenuTap, onClose: widget.onClose),
-        messages.isEmpty
+        activeMessages.isEmpty
             ? NoMsgWidget(
                 onSuggest: _onSubmit,
               )
             : MessagesScreen(
-                messages: messages,
+                messages: activeMessages,
                 onClose: widget.onClose,
                 onMenuTap: widget.onMenuTap,
               ),

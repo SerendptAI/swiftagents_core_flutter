@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:swift_agents/src/screens/widgets/chat_bubble.dart';
 import '../models/msg_model.dart';
-import '../widgets/chat_bubble.dart';
 
 class MessagesScreen extends StatefulWidget {
   final List<MsgModel> messages;
@@ -19,6 +19,7 @@ class MessagesScreen extends StatefulWidget {
 }
 
 class _MessagesScreenState extends State<MessagesScreen> {
+
   @override
   Widget build(BuildContext context) {
     return Expanded(

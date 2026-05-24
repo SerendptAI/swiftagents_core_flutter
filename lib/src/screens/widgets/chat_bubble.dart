@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:swift_agents/src/constants/fonts.dart';
 import 'package:swift_agents/src/constants/variables.dart';
-import '../theme/theme.dart';
+import '../../../swift_agents.dart';
 
 enum BubbleRole { user, agent, system }
 
@@ -34,7 +34,7 @@ class ChatBubble extends StatelessWidget {
     return Align(
       alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
-        margin: const EdgeInsets.symmetric(vertical: 6),
+        margin: const EdgeInsets.only(top: 25, bottom: 5),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         constraints: BoxConstraints(
           maxWidth: MediaQuery.of(context).size.width * 0.78,

@@ -1,4 +1,4 @@
-import '../widgets/chat_bubble.dart';
+import '../screens/widgets/chat_bubble.dart';
 
 class MsgModel {
   final String text;

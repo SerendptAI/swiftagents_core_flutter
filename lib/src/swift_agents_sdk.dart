@@ -1,8 +1,12 @@
 // lib/src/utils/rive_initializer.dart
 import 'package:dio/dio.dart';
 import 'package:rive/rive.dart';
+import 'package:swift_agents/src/models/swift_agents_context.dart';
+import 'package:swift_agents/src/services/interceptors/api_logger_interceptor.dart';
 import 'package:swift_agents/src/services/swift_agents_client.dart';
 import 'constants/variables.dart';
+import 'controllers/online_provider.dart';
+import 'controllers/sdk_provider.dart';
 
 class SwiftAgentsSdk {
   SwiftAgentsSdk._privateConstructor();
@@ -13,7 +17,8 @@ class SwiftAgentsSdk {
     return _instance;
   }
 
-  static Map<String, SwiftAgentsClient> _usrClients = {};
+  static final Map<String, SwiftAgentsContext> _usrContexts = {};
+
   // Set on initialize
   static String _apiKey = '';
   static String get apiKey => _apiKey;
@@ -48,7 +53,6 @@ class SwiftAgentsSdk {
   ///
   /// The [companyId] is your unique organization identifier found in the dashboard.
   /// The [apiKey] must be a valid public key starting with `swa_`, found in your dashboard.
-  ///
   static Future<void> initialize({
     required String companyId,
     required String apiKey,
@@ -63,11 +67,11 @@ class SwiftAgentsSdk {
     }
   }
 
-  /// ## Create or Retrieve a Client
+  /// ## Create or Retrieve user context
   ///
-  /// The `getClient` method is a static function that creates or retrieves
-  /// a `SwiftAgentsClient` instance for a specific user, identified by their email address.
-  /// This ensures that only one client instance is created per user and reuses the existing
+  /// The `getContext` method is a static function that creates or retrieves
+  /// a `SwiftAgentsContext` instance for a specific user, identified by their email address.
+  /// This ensures that only one context is created per user and reuses the existing
   /// instance if it already exists.
   ///
   /// ### Parameters:
@@ -77,30 +81,50 @@ class SwiftAgentsSdk {
   ///
   /// ### Example Usage:
   /// ```dart
-  ///   final client = SwiftAgentsSdk.getClient(email: 'user@example.com');
+  ///   final context = SwiftAgentsSdk.getContext(email: 'user@example.com');
   ///
-  ///   # pass into SwiftAgentsView client
+  ///   # pass into SwiftAgentsView's context
   ///
   /// ```
-  static SwiftAgentsClient getClient({required String email}) {
-    var usrCli = _usrClients[email];
-
-    if (usrCli == null) {
-      final dio = Dio(
-        BaseOptions(
-          baseUrl: Variables.apiBaseUrl,
-          connectTimeout: Duration(seconds: 13),
-          receiveTimeout: Duration(seconds: 60),
-          followRedirects: false,
+  static SwiftAgentsContext getContext({required String email}) {
+    if (_companyId.isEmpty || _apiKey.isEmpty) {
+      throw (
+        SwiftAgentsSDKException(
+          'Call SwiftAgentsClient.initialize before using the SDK.',
         ),
-      );
-
-      usrCli = SwiftAgentsClient(
-        email: email,
-        dio: dio,
       );
     }
 
-    return usrCli;
+    final client = SwiftAgentsClient(
+      email: email,
+      dio: Dio(BaseOptions(
+          baseUrl: Variables.apiBaseUrl,
+        connectTimeout: Duration(seconds: 20),
+        receiveTimeout: Duration(seconds: 35),
+        followRedirects: false,
+      ),
+      ),
+    );
+
+    client.dio.interceptors.add(ApiLoggerInterceptor());
+
+    return _usrContexts.putIfAbsent(
+      email,
+      () => SwiftAgentsContext(
+        client: client,
+        sdkProvider: SdkProvider(client),
+        onlineProvider: OnlineProvider(),
+      ),
+    );
   }
 }
+
+class SwiftAgentsSDKException implements Exception {
+  final String message;
+
+  const SwiftAgentsSDKException(this.message);
+
+  @override
+  String toString() => 'SwiftAgentsSDKException: $message';
+}
+

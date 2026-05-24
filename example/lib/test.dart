@@ -43,7 +43,7 @@
 //
 //   // Handles manual drag/swipe gestures
 //   void _handleDragUpdate(DragUpdateDetails details, double maxSlide) {
-//     // Convert the delta movement into a 0.0 -> 1.0 value for the controller
+//     // Convert the delta movement into a 0.0 -> 1.0 value for the controllers
 //     _animationController.value += details.primaryDelta! / maxSlide;
 //   }
 //

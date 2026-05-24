@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import '../constants/fonts.dart';
-import '../constants/variables.dart';
-import '../theme/theme.dart';
+
+import '../../../swift_agents.dart';
+import '../../constants/fonts.dart';
+import '../../constants/variables.dart';
 
 class SidebarRecent {
   final String label;

@@ -1,17 +1,18 @@
 import 'package:flutter/material.dart';
-import '../../swift_agents.dart';
-import '../screens/home_screen.dart';
-import '../widgets/sidebar.dart';
 import 'package:provider/provider.dart';
+import 'package:swift_agents/src/controllers/sdk_provider.dart';
+import 'package:swift_agents/src/models/swift_agents_context.dart';
+import 'package:swift_agents/src/screens/widgets/sidebar.dart';
+import '../../swift_agents.dart';
+import '../controllers/online_provider.dart';
+import '../theme/theme.dart';
+import '../screens/home_screen.dart';
 
-class SwiftAgentsView extends StatefulWidget {
+class SwiftAgentsView extends StatelessWidget {
   final SwiftAgentsThemeData? theme;
-  final SwiftAgentsSdk client;
+  final SwiftAgentsContext sdkContext;
 
-  const SwiftAgentsView({super.key, this.theme, required this.client});
-
-  @override
-  State<SwiftAgentsView> createState() => _SwiftAgentsViewState();
+  const SwiftAgentsView({super.key, this.theme, required this.sdkContext});
 
   void show(BuildContext context) {
     showModalBottomSheet(
@@ -31,16 +32,63 @@ class SwiftAgentsView extends StatefulWidget {
       ),
     );
   }
+
+  @override
+  Widget build(BuildContext context) {
+    final ctxSdkProvider = sdkContext.sdkProvider;
+    final ctxOnlineProvider = sdkContext.onlineProvider;
+
+
+    return SwiftAgentsTheme(
+      data: theme  ?? SwiftAgentsThemeData.light(),
+      child: MultiProvider(
+        providers: [
+          ChangeNotifierProvider.value(value: ctxSdkProvider),
+          ChangeNotifierProvider.value(value: ctxOnlineProvider),
+        ],
+        child: _SwiftAgentsViewBody(
+          theme: theme,
+        ),
+      ),
+    );
+  }
 }
 
-class _SwiftAgentsViewState extends State<SwiftAgentsView>
+class _SwiftAgentsViewBody extends StatefulWidget {
+  final SwiftAgentsThemeData? theme;
+
+  const _SwiftAgentsViewBody({super.key, required this.theme});
+
+  @override
+  State<_SwiftAgentsViewBody> createState() => _SwiftAgentsViewBodyState();
+}
+
+class _SwiftAgentsViewBodyState extends State<_SwiftAgentsViewBody>
     with SingleTickerProviderStateMixin {
-  late AnimationController _animationController;
   final int sidebarMilliSecond = 260;
+
+  // StreamSubscription? onlineStream;
+  late AnimationController _animationController;
+
+  void checkInternetConnection() {
+    final onlineProvider = Provider.of<OnlineProvider>(context, listen: false);
+    final sdkProvider = Provider.of<SdkProvider>(context, listen: false);
+    sdkProvider.initiateSession();
+
+    onlineProvider.onlineStream.listen((bool isOnline) {
+      if (isOnline) {
+        sdkProvider.initiateSession();
+      }
+    });
+  }
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      checkInternetConnection();
+    });
+
     _animationController = AnimationController(
       vsync: this,
       duration: Duration(milliseconds: sidebarMilliSecond),
@@ -50,6 +98,7 @@ class _SwiftAgentsViewState extends State<SwiftAgentsView>
   @override
   void dispose() {
     _animationController.dispose();
+    // onlineStream?.cancel();
     super.dispose();
   }
 
@@ -63,7 +112,7 @@ class _SwiftAgentsViewState extends State<SwiftAgentsView>
 
   // Handles manual drag/swipe gestures
   void _handleDragUpdate(DragUpdateDetails details, double maxSlide) {
-    // Convert the delta movement into a 0.0 -> 1.0 value for the controller
+    // Convert the delta movement into a 0.0 -> 1.0 value for the controllers
     _animationController.value += details.primaryDelta! / maxSlide;
   }
 
@@ -89,128 +138,63 @@ class _SwiftAgentsViewState extends State<SwiftAgentsView>
     final theme = widget.theme ?? SwiftAgentsThemeData();
     final screenWidth = MediaQuery.sizeOf(context).width;
 
-    // Calculate 40% of the screen width for the sidebar exposure
+    // Calculate 60% of the screen width for the sidebar exposure
     final double maxSlide = screenWidth * 0.6;
 
-    return SwiftAgentsTheme(
-      data: theme,
-      child: MultiProvider(
-        providers: [
-          ChangeNotifierProvider(create: (_) => UserProvider()),
-        ],
-        child: Scaffold(
-          body: SwiftAgentsTheme(
-            data: theme,
-            child: AnimatedBuilder(
-              animation: _animationController,
-              builder: (context, child) {
-                // Calculate current slide offset and border radius based on animation state
-                double slide = maxSlide * _animationController.value;
-                double scale =
-                    1.0; // Optional: You could scale down slightly if desired (e.g., 1.0 - (0.05 * _animationController.value))
-                double borderRadius = 50.0 * _animationController.value;
+    return Scaffold(
+      body: AnimatedBuilder(
+        animation: _animationController,
+        builder: (context, child) {
+          // Calculate current slide offset and border radius based on animation state
+          double slide = maxSlide * _animationController.value;
+          double scale =
+              1.0; // Optional: You could scale down slightly if desired (e.g., 1.0 - (0.05 * _animationController.value))
+          double borderRadius = 50.0 * _animationController.value;
 
-                return Stack(
-                  children: [
-                    // 1. BACKGROUND: Sidebar Screen (Constrained to 40% width)
-                    SizedBox(
-                      width: maxSlide,
-                      child: SidebarWidget(
-                        onClose: () => _animationController.reverse(),
-                      ),
-                    ),
+          return Stack(
+            children: [
+              // 1. BACKGROUND: Sidebar Screen (Constrained to 40% width)
+              SizedBox(
+                width: maxSlide,
+                child: SidebarWidget(
+                  onClose: () => _animationController.reverse(),
+                ),
+              ),
 
-                    // 2. FOREGROUND: Main Content with Drag Gestures
-                    Transform.translate(
-                      offset: Offset(slide, 0),
-                      child: Transform.scale(
-                        scale: scale,
-                        alignment: Alignment.centerLeft,
-                        child: GestureDetector(
-                          // Horizontal drag handles manual scrolling
-                          onHorizontalDragUpdate: (details) =>
-                              _handleDragUpdate(details, maxSlide),
-                          onHorizontalDragEnd: (details) =>
-                              _handleDragEnd(details, maxSlide),
-                          child: Container(
-                            color: theme.sidebarBg,
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.only(
-                                topLeft: Radius.circular(borderRadius),
-                              ),
-                              child: Container(
-                                color: theme.background,
-                                child: HomeScreen(
-                                      onMenuTap: _toggleSidebar,
-                                      onClose: () => Navigator.of(context).maybePop(),
-                                    ),
-                              ),
-                            ),
-                          ),
+              // 2. FOREGROUND: Main Content with Drag Gestures
+              Transform.translate(
+                offset: Offset(slide, 0),
+                child: Transform.scale(
+                  scale: scale,
+                  alignment: Alignment.centerLeft,
+                  child: GestureDetector(
+                    // Horizontal drag handles manual scrolling
+                    onHorizontalDragUpdate: (details) =>
+                        _handleDragUpdate(details, maxSlide),
+                    onHorizontalDragEnd: (details) =>
+                        _handleDragEnd(details, maxSlide),
+                    child: Container(
+                      color: theme.sidebarBg,
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.only(
+                          topLeft: Radius.circular(borderRadius),
                         ),
-                      ),
-                    ),
-                  ],
-                );
-              },
-            ),
-          ),
-          child: AnimatedBuilder(
-            animation: _animationController,
-            builder: (context, child) {
-              // Calculate current slide offset and border radius based on animation state
-              double slide = maxSlide * _animationController.value;
-              double scale =
-                  1.0; // Optional: You could scale down slightly if desired (e.g., 1.0 - (0.05 * _animationController.value))
-              double borderRadius = 50.0 * _animationController.value;
-
-              return Stack(
-                children: [
-                  // 1. BACKGROUND: Sidebar Screen (Constrained to 40% width)
-                  SizedBox(
-                    width: maxSlide,
-                    child: SidebarWidget(
-                      onClose: () => _animationController.reverse(),
-                    ),
-                  ),
-
-                  // 2. FOREGROUND: Main Content with Drag Gestures
-                  Transform.translate(
-                    offset: Offset(slide, 0),
-                    child: Transform.scale(
-                      scale: scale,
-                      alignment: Alignment.centerLeft,
-                      child: GestureDetector(
-                        // Horizontal drag handles manual scrolling
-                        onHorizontalDragUpdate: (details) =>
-                            _handleDragUpdate(details, maxSlide),
-                        onHorizontalDragEnd: (details) =>
-                            _handleDragEnd(details, maxSlide),
                         child: Container(
-                          color: theme.sidebarBg,
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.only(
-                              topLeft: Radius.circular(borderRadius),
-                            ),
-                            child: Container(
-                              color: theme.background,
-                              child: HomeScreen(
-                                    onMenuTap: _toggleSidebar,
-                                    onClose: () => Navigator.of(context).maybePop(),
-                                  ),
-                            ),
+                          color: theme.background,
+                          child: HomeScreen(
+                            onMenuTap: _toggleSidebar,
+                            onClose: () => Navigator.of(context).maybePop(),
                           ),
                         ),
                       ),
                     ),
                   ),
-                ],
-              );
-            },
-          ),
-        ),
+                ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
 }
-

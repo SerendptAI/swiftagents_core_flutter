@@ -16,6 +16,10 @@ dependencies:
   rive: ^0.14.7
   dio: ^5.9.2
   provider: ^6.1.5+1
+  logger: ^2.7.0
+  cached_network_image: ^3.4.1
+  internet_connection_checker: ^3.0.1
+
 
 dev_dependencies:
   flutter_test:
@@ -65,7 +69,6 @@ flutter:
 
   assets:
     - assets/svgs/
-    - assets/videos/
     - assets/rives/
     - assets/images/
 

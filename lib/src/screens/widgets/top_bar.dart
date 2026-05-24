@@ -1,9 +1,13 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:provider/provider.dart';
 import 'package:swift_agents/src/constants/colors.dart';
 import 'package:swift_agents/src/constants/variables.dart';
-import '../constants/fonts.dart';
-import '../theme/theme.dart';
+import 'package:swift_agents/src/screens/widgets/get_cached_image.dart';
+import '../../../swift_agents.dart';
+import '../../constants/fonts.dart';
+import '../../controllers/sdk_provider.dart';
 
 class TopBar extends StatelessWidget {
   final VoidCallback? onMenuTap;
@@ -22,29 +26,32 @@ class TopBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = SwiftAgentsTheme.of(context);
+    final sdkProvider = Provider.of<SdkProvider>(context);
+    final company = sdkProvider.sessionResponse?.company;
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
       child: Row(
         children: [
-        GestureDetector(
-        onTap: onMenuTap,
-        child: Container(
-          width: 42,
-          height: 42,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            border: Border.all(color: t.foreground.withOpacity(0.06)),
+          GestureDetector(
+            onTap: onMenuTap,
+            child: Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(color: t.foreground.withOpacity(0.06)),
+              ),
+              alignment: Alignment.center,
+              child: SvgPicture.asset(
+                'assets/svgs/menu.svg',
+                package: Variables.sdkName,
+                width: 27,
+                height: 27,
+                colorFilter: ColorFilter.mode(t.foreground, BlendMode.srcIn),
+              ),
+            ),
           ),
-          alignment: Alignment.center,
-          child: SvgPicture.asset(
-            'assets/svgs/menu.svg',
-            package: Variables.sdkName,
-            width: 27,
-            height: 27,
-            colorFilter: ColorFilter.mode(t.foreground, BlendMode.srcIn),
-          ),
-        ),
-      ),
           Expanded(
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -54,20 +61,23 @@ class TopBar extends StatelessWidget {
                   height: 30,
                   color: kLibPurple,
                   alignment: Alignment.center,
-                  child: Text(
-                    'LOGO',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 8,
-                      fontWeight: FontWeight.w700,
-                      fontFamily: Fonts.greedNarrow,
-                      package: Variables.sdkName,
+                  child: GetCachedImage(
+                    url: company?.logoUrl,
+                    placeholder: Text(
+                      'LOGO',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 8,
+                        fontWeight: FontWeight.w700,
+                        fontFamily: Fonts.greedNarrow,
+                        package: Variables.sdkName,
+                      ),
                     ),
                   ),
                 ),
                 const SizedBox(width: 10),
                 Text(
-                  companyName,
+                  company?.name ?? '',
                   style: TextStyle(
                     fontWeight: FontWeight.w500,
                     fontSize: 14,
@@ -96,5 +106,3 @@ class TopBar extends StatelessWidget {
     );
   }
 }
-
-

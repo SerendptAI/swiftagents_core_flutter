@@ -2,25 +2,24 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:dio/dio.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:swift_agents/src/constants/variables.dart';
 import 'package:swift_agents/src/models/init_session_response.dart';
+import 'package:swift_agents/src/models/msg_model.dart';
+import 'package:swift_agents/src/screens/widgets/chat_bubble.dart';
 import 'package:swift_agents/src/swift_agents_sdk.dart';
+import 'package:swift_agents/src/utils/logger.dart';
 
 class SwiftAgentsClient {
   final Dio dio;
   final String email;
 
-  SwiftAgentsClient({
-    required this.dio,
-    required this.email,
-  });
+  SwiftAgentsClient({required this.dio, required this.email});
 
   String? _sessionToken;
 
-  String _sdkPath(String path){
+  String _sdkPath(String path) {
     final companyId = SwiftAgentsSdk.companyId;
-    return '${Variables.apiBaseUrl}/v1/sdk/$companyId$path';
+    return '${Variables.apiBaseUrl}/api/v1/sdk/$companyId$path';
   }
 
   Map<String, String> get _authHeaders => {
@@ -30,42 +29,38 @@ class SwiftAgentsClient {
   void _requireSession() {
     if (_sessionToken == null) {
       throw StateError(
-        'Call SwiftAgentsClient.initialize before using the SDK.',
+        "Call SwiftAgentsSdk.initialize( companyId: '****', apiKey: 'swa_****'); before using the SDK.",
       );
     }
   }
 
   Future<InitSessionResponse?> initialize() async {
-
     Map<String, dynamic> data = {'email': email};
 
     try {
       var response = await dio.post(
         _sdkPath('/init'),
         data: data,
-        options: Options(
-          headers: {
-            'X-API-Key ': SwiftAgentsSdk.apiKey,
-          }
-        ),
+        options: Options(headers: {'X-API-Key': SwiftAgentsSdk.apiKey}),
       );
 
       var jsonData = response.data;
 
       if (jsonData != null) {
-        InitSessionResponse sessionResponse = InitSessionResponse.fromJson(jsonData);
-        debugPrint("API session: ${sessionResponse.toJson()}");
+        InitSessionResponse sessionResponse = InitSessionResponse.fromJson(
+          jsonData,
+        );
 
+        _sessionToken = sessionResponse.sessionToken;
         return sessionResponse;
       }
 
       return null;
-    } on DioException catch (e) {
-      throw _handleError(e);
+    } catch (e, t) {
+      _handleError(e, t);
+      return null;
     }
   }
-
-
 
   // Future<SdkConversationListResponse> listConversations({
   //   int limit = 20,
@@ -160,7 +155,7 @@ class SwiftAgentsClient {
   //   }
   // }
 
-  Stream<String> sendMessage({
+  Stream<MsgModel> sendMessage({
     required String sessionId,
     required String message,
   }) async* {
@@ -169,10 +164,7 @@ class SwiftAgentsClient {
     try {
       final response = await dio.post<ResponseBody>(
         _sdkPath('/chat'),
-        data: {
-          'session_id': sessionId,
-          'message': message,
-        },
+        data: {'session_id': sessionId, 'message': message},
         options: Options(
           headers: _authHeaders,
           responseType: ResponseType.stream,
@@ -189,15 +181,13 @@ class SwiftAgentsClient {
 
       await for (final chunk in stream) {
         final decodedChunk = utf8.decode(chunk);
-
         pendingText += decodedChunk;
 
         final lines = pendingText.split('\n');
-
         pendingText = lines.removeLast();
 
         for (final value in _extractSseData(lines)) {
-          if (value.isNotEmpty) {
+          if (value.text.isNotEmpty) {
             yield value;
           }
         }
@@ -205,95 +195,182 @@ class SwiftAgentsClient {
 
       if (pendingText.trim().isNotEmpty) {
         for (final value in _extractSseData([pendingText])) {
-          if (value.isNotEmpty) {
+          if (value.text.isNotEmpty) {
             yield value;
           }
         }
       }
-    } on DioException catch (e) {
-      throw _handleError(e);
+    } catch (e, t) {
+      _handleError(e, t);
     }
   }
 
-
-  Iterable<String> _extractSseData(
-      List<String> lines,
-      ) sync* {
+  Iterable<MsgModel> _extractSseData(List<String> lines) sync* {
+    // print('\n\n');
+    // print('LineS: $lines');
     for (final line in lines) {
+      // print('A Line: $line');
+
       final trimmedLine = line.trim();
 
-      if (trimmedLine.isEmpty) {
+      // 1. Skip completely empty lines or lines that define SSE events
+      if (trimmedLine.isEmpty || trimmedLine.startsWith('event:')) {
         continue;
       }
 
-      if (!trimmedLine.startsWith('data:')) {
-        yield trimmedLine;
-        continue;
+      String jsonString = trimmedLine;
+
+      // 2. Strip standard SSE data prefix if present
+      if (trimmedLine.startsWith('data:')) {
+        jsonString = trimmedLine.substring(5).trim();
       }
 
-      final data = trimmedLine
-          .substring(5)
-          .trim();
-
-      if (data == '[DONE]') {
+      // If the processed string is empty now, skip it
+      if (jsonString.isEmpty) {
         continue;
       }
 
       try {
-        final decoded = jsonDecode(data);
+        final decoded = jsonDecode(jsonString);
 
-        if (decoded is Map<String, dynamic>) {
-          yield (
-              decoded['delta'] ??
-                  decoded['content'] ??
-                  decoded['message'] ??
-                  data
-          ).toString();
-        } else {
-          yield decoded.toString();
+        if (decoded is Map<String, dynamic> && decoded.containsKey('data')) {
+          final dataMap = decoded['data'];
+
+          if (dataMap is Map<String, dynamic>) {
+            final stage = dataMap['stage'];
+
+            if (stage == 'done') {
+              continue;
+            }
+
+            var msg = dataMap['message'];
+            if (msg != null) {
+              final isSystem = ["thinking", "chat_details"].contains(stage);
+
+              yield MsgModel(
+                msg.toString(),
+                isSystem ? BubbleRole.system : BubbleRole.agent,
+              );
+            }
+          }
         }
       } catch (_) {
-        yield data;
+        // Fallback: If it isn't JSON, don't yield raw SSE text pollution unless it's pure content
+        if (!trimmedLine.contains(':')) {
+          yield MsgModel(
+            trimmedLine,
+            BubbleRole.agent,
+          );
+        }
       }
     }
   }
+  // Iterable<String> _extractSseData(List<String> lines) sync* {
+  //   print('\n\n');
+  //   print('LineS: $lines');
+  //   for (final line in lines) {
+  //     print('A Line: $line');
+  //
+  //     final trimmedLine = line.trim();
+  //
+  //     // 1. Skip completely empty lines or lines that define SSE events
+  //     if (trimmedLine.isEmpty || trimmedLine.startsWith('event:')) {
+  //       continue;
+  //     }
+  //
+  //     String jsonString = trimmedLine;
+  //
+  //     // 2. Strip standard SSE data prefix if present
+  //     if (trimmedLine.startsWith('data:')) {
+  //       jsonString = trimmedLine.substring(5).trim();
+  //     }
+  //
+  //     // If the processed string is empty now, skip it
+  //     if (jsonString.isEmpty) {
+  //       continue;
+  //     }
+  //
+  //     try {
+  //       final decoded = jsonDecode(jsonString);
+  //
+  //       if (decoded is Map<String, dynamic> && decoded.containsKey('data')) {
+  //         final dataMap = decoded['data'];
+  //
+  //         if (dataMap is Map<String, dynamic>) {
+  //           final stage = dataMap['stage'];
+  //
+  //           if (stage == 'done') {
+  //             continue;
+  //           }
+  //
+  //           if (dataMap.containsKey('message') && dataMap['message'] != null) {
+  //             yield dataMap['message'].toString();
+  //           }
+  //         }
+  //       }
+  //     } catch (_) {
+  //       // Fallback: If it isn't JSON, don't yield raw SSE text pollution unless it's pure content
+  //       if (!trimmedLine.contains(':')) {
+  //         yield trimmedLine;
+  //       }
+  //     }
+  //   }
+  // }
 
-  SwiftAgentsApiException _handleError(
-      DioException error,
-      ) {
-    final statusCode =
-        error.response?.statusCode ?? 500;
+  void _handleError(dynamic error, StackTrace trace) {
+    int statusCode = 0;
+    String message = error.toString();
 
-    final responseData = error.response?.data;
+    // Safely check if error is a DioException before accessing response properties
+    if (error is DioException) {
+      statusCode = error.response?.statusCode ?? 0;
+      final responseData = error.response?.data;
 
-    String message =
-        error.message ?? 'Unknown error';
-
-    if (responseData is Map<String, dynamic>) {
-      message =
-          responseData['message']?.toString() ??
-              responseData['error']?.toString() ??
-              message;
-    } else if (responseData != null) {
-      message = responseData.toString();
+      if (responseData is Map<String, dynamic>) {
+        message =
+            responseData['detail']?.toString() ??
+            responseData['message']?.toString() ??
+            responseData['error']?.toString() ??
+            error.message ??
+            'Dio error occurred';
+      } else if (responseData != null) {
+        message = responseData.toString();
+      } else {
+        message = error.message ?? 'Dio error occurred';
+      }
     }
 
-    return SwiftAgentsApiException(
-      statusCode,
-      message,
-    );
+    logError(SwiftAgentsApiException(statusCode, message), trace);
   }
+
+  // void _handleError(error, trace) {
+  //   final statusCode = error.response?.statusCode ?? 0;
+  //
+  //   final responseData = error.response?.data;
+  //
+  //   String message = error.message ?? 'Unknown error';
+  //
+  //   if (responseData is Map<String, dynamic>) {
+  //     message =
+  //         responseData['detail']?.toString() ??
+  //         responseData['message']?.toString() ??
+  //         responseData['error']?.toString() ??
+  //         message;
+  //   } else if (responseData != null) {
+  //     message = responseData.toString();
+  //   } else {
+  //     message = error.toString();
+  //   }
+  //
+  //   logError(SwiftAgentsApiException(statusCode, message), trace) ;
+  // }
 }
 
 class SwiftAgentsApiException implements Exception {
   final int statusCode;
-
   final String message;
 
-  const SwiftAgentsApiException(
-      this.statusCode,
-      this.message,
-      );
+  const SwiftAgentsApiException(this.statusCode, this.message);
 
   @override
   String toString() {

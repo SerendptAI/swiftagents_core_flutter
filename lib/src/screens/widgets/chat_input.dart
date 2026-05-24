@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
-import '../constants/fonts.dart';
-import '../constants/variables.dart';
-import '../theme/theme.dart';
+
+import '../../../swift_agents.dart';
+import '../../constants/fonts.dart';
+import '../../constants/variables.dart';
 
 class ChatInput extends StatefulWidget {
   final ValueChanged<String>? onSubmit;
