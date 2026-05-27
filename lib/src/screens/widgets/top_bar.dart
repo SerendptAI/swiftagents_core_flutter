@@ -77,7 +77,7 @@ class TopBar extends StatelessWidget {
                 ),
                 const SizedBox(width: 10),
                 Text(
-                  company?.name ?? '',
+                  company?.name?.toUpperCase() ?? '',
                   style: TextStyle(
                     fontWeight: FontWeight.w500,
                     fontSize: 14,

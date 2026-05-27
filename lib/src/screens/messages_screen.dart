@@ -29,9 +29,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
         itemBuilder: (context, index) {
           final m = widget.messages.reversed.toList()[index];
-          return m.role != BubbleRole.system
-              ? ChatBubble(text: m.text, role: m.role)
-              : ChatBubble(text: m.text, role: BubbleRole.system);
+          return ChatBubble(message: m);
         },
       ),
     );

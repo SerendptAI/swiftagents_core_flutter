@@ -8,17 +8,20 @@ import '../../constants/variables.dart';
 class SidebarRecent {
   final String label;
   final bool resolved;
+
   const SidebarRecent(this.label, {this.resolved = false});
 }
 
 class SidebarWidget extends StatefulWidget {
   final VoidCallback? onClose;
+  final VoidCallback? onNewChat;
   final String brand;
   final List<SidebarRecent> recents;
 
   const SidebarWidget({
     super.key,
     this.onClose,
+    this.onNewChat,
     this.brand = 'SWIFT AGENTS',
     this.recents = const [
       SidebarRecent('ISSUE WITH NEW FO...', resolved: false),
@@ -28,11 +31,8 @@ class SidebarWidget extends StatefulWidget {
       SidebarRecent('TRACK MY ORDER', resolved: true),
       SidebarRecent('REFUND STATUS', resolved: true),
       SidebarRecent('CHANGE ADDRESS', resolved: true),
-      SidebarRecent('ADD DEPENDENTS', resolved: true),
-      SidebarRecent('FILE A CLAIM', resolved: true),
       SidebarRecent('UPLOAD DOCUMEN...', resolved: true),
       SidebarRecent('RENEW BENEFITS'),
-      SidebarRecent('CHECK ENROLLME...'),
     ],
   });
 
@@ -46,10 +46,11 @@ class _SidebarWidgetState extends State<SidebarWidget> {
   @override
   Widget build(BuildContext context) {
     final t = SwiftAgentsTheme.of(context);
+
     return Container(
       height: double.maxFinite,
       color: t.sidebarBg,
-      padding: const EdgeInsets.fromLTRB(20, 20, 12, 32),
+      padding: const EdgeInsets.fromLTRB(20, 20, 12, 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -72,7 +73,9 @@ class _SidebarWidgetState extends State<SidebarWidget> {
               ),
             ],
           ),
+
           const SizedBox(height: 32),
+
           Text(
             'RECENTS',
             style: TextStyle(
@@ -82,15 +85,15 @@ class _SidebarWidgetState extends State<SidebarWidget> {
               package: Variables.sdkName,
             ),
           ),
-          const SizedBox(height: 16),
+
+          const SizedBox(height: 12),
+
           Expanded(
             child: ListView.separated(
-              physics: BouncingScrollPhysics(
+              physics: const BouncingScrollPhysics(
                 parent: AlwaysScrollableScrollPhysics(),
               ),
-              separatorBuilder: (BuildContext context, int index) {
-                return SizedBox(height: 0);
-              },
+              separatorBuilder: (_, __) => const SizedBox(height: 0),
               itemCount: widget.recents.length,
               itemBuilder: (context, index) {
                 return _RecentItem(
@@ -102,6 +105,51 @@ class _SidebarWidgetState extends State<SidebarWidget> {
                   item: widget.recents[index],
                 );
               },
+            ),
+          ),
+
+          const SizedBox(height: 20),
+
+          /// NEW CHAT BUTTON AT BOTTOM
+          InkWell(
+            onTap: widget.onNewChat,
+            child: Container(
+              height: 50,
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              decoration: BoxDecoration(
+                color: Colors.grey[200],
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    blurRadius: 14,
+                    offset: const Offset(0, 6),
+                    color: Colors.black.withOpacity(0.12),
+                  ),
+                ],
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(
+                    Icons.add_rounded,
+                    color: Colors.black,
+                    size: 20,
+                  ),
+                  const SizedBox(width: 10),
+                  Text(
+                    'NEW CHAT',
+                    style: TextStyle(
+                      color: Colors.black,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 1,
+                      fontFamily: Fonts.dmMono,
+                      package: Variables.sdkName,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ],
@@ -125,7 +173,6 @@ class _RecentItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final t = SwiftAgentsTheme.of(context);
     final isSelected = index == selectedIndex;
 
     final style = TextStyle(
@@ -141,18 +188,22 @@ class _RecentItem extends StatelessWidget {
 
     return GestureDetector(
       onTap: onTap,
-      child: Container(
-        height: 32,
-        margin: const EdgeInsets.symmetric(vertical: 0),
-        padding: const EdgeInsets.symmetric(horizontal: 12),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeOut,
+        height: 40,
+        margin: EdgeInsets.symmetric(vertical: 3),
+        padding: const EdgeInsets.symmetric(horizontal: 14),
         alignment: Alignment.centerLeft,
-        decoration: isSelected
-            ? BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(10),
-              )
-            : null,
-        child: Text(item.label, style: style),
+        decoration: BoxDecoration(
+          color: isSelected ? Colors.white : Colors.transparent,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Text(
+          item.label,
+          overflow: TextOverflow.ellipsis,
+          style: style,
+        ),
       ),
     );
   }

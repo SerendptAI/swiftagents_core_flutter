@@ -26,8 +26,6 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  // List <MsgModel> messages = [];
-  //
   // void _simulateAgent() {
   //   messages.add(MsgModel('AGENT IS SEARCHING...', BubbleRole.system));
   //
