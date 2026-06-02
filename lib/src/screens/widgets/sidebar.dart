@@ -1,39 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:provider/provider.dart';
+import 'package:swift_agents/src/controllers/sdk_provider.dart';
+import 'package:swift_agents/src/models/conversations_response.dart';
 
 import '../../../swift_agents.dart';
 import '../../constants/fonts.dart';
 import '../../constants/variables.dart';
 
-class SidebarRecent {
-  final String label;
-  final bool resolved;
-
-  const SidebarRecent(this.label, {this.resolved = false});
-}
-
 class SidebarWidget extends StatefulWidget {
   final VoidCallback? onClose;
   final VoidCallback? onNewChat;
   final String brand;
-  final List<SidebarRecent> recents;
 
   const SidebarWidget({
     super.key,
     this.onClose,
     this.onNewChat,
     this.brand = 'SWIFT AGENTS',
-    this.recents = const [
-      SidebarRecent('ISSUE WITH NEW FO...', resolved: false),
-      SidebarRecent('FIND MY BENEFI...', resolved: true),
-      SidebarRecent('RESET PASSWORD', resolved: true),
-      SidebarRecent('REPORT A PROBL...', resolved: true),
-      SidebarRecent('TRACK MY ORDER', resolved: true),
-      SidebarRecent('REFUND STATUS', resolved: true),
-      SidebarRecent('CHANGE ADDRESS', resolved: true),
-      SidebarRecent('UPLOAD DOCUMEN...', resolved: true),
-      SidebarRecent('RENEW BENEFITS'),
-    ],
   });
 
   @override
@@ -41,11 +25,39 @@ class SidebarWidget extends StatefulWidget {
 }
 
 class _SidebarWidgetState extends State<SidebarWidget> {
-  int selectedIndex = 0;
+  int? selectedIndex;
+  late ScrollController _scrollController;
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController = ScrollController();
+    _scrollController.addListener(_paginationListener);
+  }
+
+  void _paginationListener() {
+    final provider = context.read<SdkProvider>();
+
+    if (_scrollController.position.pixels >=
+        _scrollController.position.maxScrollExtent - 200) {
+      if (!provider.isGetConversionsLoading && provider.hasNext) {
+        provider.getConversations();
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     final t = SwiftAgentsTheme.of(context);
+    final sdkProvider = Provider.of<SdkProvider>(context);
+    final recents = sdkProvider.conversationsList;
+    final hasNext = sdkProvider.hasNext;
 
     return Container(
       height: double.maxFinite,
@@ -94,15 +106,26 @@ class _SidebarWidgetState extends State<SidebarWidget> {
                 parent: AlwaysScrollableScrollPhysics(),
               ),
               separatorBuilder: (_, __) => const SizedBox(height: 0),
-              itemCount: widget.recents.length,
+              itemCount: recents.length + (hasNext ? 0 : 0),
               itemBuilder: (context, index) {
+                final recent = recents[index];
+                if (index == recents.length) {
+                  return const Padding(
+                    padding: EdgeInsets.all(16),
+                    child: Center(child: CircularProgressIndicator()),
+                  );
+                }
+
                 return _RecentItem(
                   index: index,
                   selectedIndex: selectedIndex,
                   onTap: () {
-                    setState(() => selectedIndex = index);
+                    if (recent.id != null) {
+                      setState(() => selectedIndex = index);
+                      sdkProvider.openChat(recent.id!);
+                    }
                   },
-                  item: widget.recents[index],
+                  item: recent,
                 );
               },
             ),
@@ -112,7 +135,10 @@ class _SidebarWidgetState extends State<SidebarWidget> {
 
           /// NEW CHAT BUTTON AT BOTTOM
           InkWell(
-            onTap: widget.onNewChat,
+            onTap: () {
+              widget.onNewChat?.call();
+              selectedIndex = null;
+            },
             child: Container(
               height: 50,
               width: double.infinity,
@@ -131,11 +157,7 @@ class _SidebarWidgetState extends State<SidebarWidget> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(
-                    Icons.add_rounded,
-                    color: Colors.black,
-                    size: 20,
-                  ),
+                  const Icon(Icons.add_rounded, color: Colors.black, size: 20),
                   const SizedBox(width: 10),
                   Text(
                     'NEW CHAT',
@@ -160,9 +182,9 @@ class _SidebarWidgetState extends State<SidebarWidget> {
 
 class _RecentItem extends StatelessWidget {
   final int index;
-  final int selectedIndex;
+  final int? selectedIndex;
   final void Function() onTap;
-  final SidebarRecent item;
+  final ConversationItem item;
 
   const _RecentItem({
     required this.index,
@@ -200,7 +222,8 @@ class _RecentItem extends StatelessWidget {
           borderRadius: BorderRadius.circular(12),
         ),
         child: Text(
-          item.label,
+          item.lastMessage ?? '',
+          // item.subject ?? '',
           overflow: TextOverflow.ellipsis,
           style: style,
         ),

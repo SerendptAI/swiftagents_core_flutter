@@ -90,7 +90,7 @@ class SwiftAgentsSdk {
     if (_companyId.isEmpty || _apiKey.isEmpty) {
       throw (
         SwiftAgentsSDKException(
-          'Call SwiftAgentsClient.initialize before using the SDK.',
+          'Call SwiftAgentsClient.initialize before getContext().',
         ),
       );
     }

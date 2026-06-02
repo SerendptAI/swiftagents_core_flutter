@@ -73,11 +73,18 @@ class _SwiftAgentsViewBodyState extends State<_SwiftAgentsViewBody>
   void checkInternetConnection() {
     final onlineProvider = Provider.of<OnlineProvider>(context, listen: false);
     final sdkProvider = Provider.of<SdkProvider>(context, listen: false);
-    sdkProvider.initiateSession();
+    if (sdkProvider.messages.isEmpty) {
+      sdkProvider.createNewChat();
+    }
+
+    sdkProvider.initiateSession().then((session){
+      if (session != null) sdkProvider.getConversations(checkConversationsLoaded: true);
+    });
 
     onlineProvider.onlineStream.listen((bool isOnline) {
       if (isOnline) {
         sdkProvider.initiateSession();
+        sdkProvider.getConversations(checkConversationsLoaded: true);
       }
     });
   }
@@ -88,6 +95,7 @@ class _SwiftAgentsViewBodyState extends State<_SwiftAgentsViewBody>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       checkInternetConnection();
     });
+
 
     _animationController = AnimationController(
       vsync: this,
@@ -158,6 +166,11 @@ class _SwiftAgentsViewBodyState extends State<_SwiftAgentsViewBody>
                 width: maxSlide,
                 child: SidebarWidget(
                   onClose: () => _animationController.reverse(),
+                  onNewChat: () {
+                    final sdkProvider = context.read<SdkProvider>();
+                    sdkProvider.createNewChat();
+                    _animationController.reverse();
+                  },
                 ),
               ),
 

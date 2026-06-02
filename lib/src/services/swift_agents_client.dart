@@ -3,11 +3,13 @@ import 'dart:convert';
 
 import 'package:dio/dio.dart';
 import 'package:swift_agents/src/constants/variables.dart';
+import 'package:swift_agents/src/models/conversation_details_response.dart';
 import 'package:swift_agents/src/models/init_session_response.dart';
 import 'package:swift_agents/src/models/msg_model.dart';
 import 'package:swift_agents/src/screens/widgets/chat_bubble.dart';
 import 'package:swift_agents/src/swift_agents_sdk.dart';
 import 'package:swift_agents/src/utils/logger.dart';
+import '../models/conversations_response.dart';
 
 class SwiftAgentsClient {
   final Dio dio;
@@ -29,7 +31,12 @@ class SwiftAgentsClient {
   void _requireSession() {
     if (_sessionToken == null) {
       throw StateError(
-        "Call SwiftAgentsSdk.initialize( companyId: '****', apiKey: 'swa_****'); before using the SDK.",
+        """
+        Swift API called before initialization.
+        1. Call SwiftAgentsSdk.initialize( companyId: '****', apiKey: 'swa_****') in main.
+        2. Pass SwiftAgentsSdk.getContext(email: 'user***@mail.com') into view
+        3. Check your internet connection.
+        """,
       );
     }
   }
@@ -62,61 +69,54 @@ class SwiftAgentsClient {
     }
   }
 
-  // Future<SdkConversationListResponse> listConversations({
-  //   int limit = 20,
-  //   String? cursor,
-  //   bool forceRefresh = false,
-  // }) async {
-  //   _requireSession();
-  //
-  //   final email = _activeUserEmail;
-  //
-  //   if (
-  //   !forceRefresh &&
-  //       cursor == null &&
-  //       email != null
-  //   ) {
-  //     final cachedConversations = cache.conversations(email);
-  //
-  //     if (cachedConversations.isNotEmpty) {
-  //       return SdkConversationListResponse(
-  //         items: cachedConversations,
-  //       );
-  //     }
-  //   }
-  //
-  //   try {
-  //     final response = await _dio.get(
-  //       _sdkPath('/conversations'),
-  //       queryParameters: {
-  //         'limit': limit.clamp(1, 50).toString(),
-  //
-  //         if (cursor != null)
-  //           'cursor': cursor,
-  //       },
-  //       options: Options(
-  //         headers: _authHeaders,
-  //       ),
-  //     );
-  //
-  //     final data = _parseResponse(response.data);
-  //
-  //     final conversations =
-  //     SdkConversationListResponse.fromJson(data);
-  //
-  //     if (email != null && cursor == null) {
-  //       cache.saveConversations(
-  //         email,
-  //         conversations.items,
-  //       );
-  //     }
-  //
-  //     return conversations;
-  //   } on DioException catch (e) {
-  //     throw _handleError(e);
-  //   }
-  // }
-  //
+  Future<ConversationsResponse?> listConversations({
+    int limit = 20,
+    String? cursor,
+    bool forceRefresh = false,
+  }) async {
+    _requireSession();
+
+    try {
+      var response = await dio.get(
+        _sdkPath('/conversations'),
+        options: Options(headers: _authHeaders),
+        queryParameters: {
+          'cursor': cursor,
+          'limit': limit,
+        },
+      );
+
+      if (response.data == null) return null;
+
+      return ConversationsResponse.fromJson(response.data);
+    } catch (e, trace) {
+      // ERROR HANDLING
+      logError("Fetch Conversation Failed: $e", trace);
+      return null;
+    }
+  }
+
+  Future<ConversationDetailsResponse?> getConversationDetails({
+    required String conversationId,
+  }) async {
+    _requireSession();
+
+    try {
+      var response = await dio.get(
+        _sdkPath('/conversations/$conversationId'),
+        options: Options(headers: _authHeaders),
+      );
+
+      if (response.data == null) return null;
+
+      return ConversationDetailsResponse.fromJson(response.data);
+    } catch (e, trace) {
+      // ERROR HANDLING
+      logError("Fetch Messages Failed: $e", trace);
+      return null;
+    }
+  }
+
   // Future<SdkConversationDetail> getConversation(
   //     String conversationId, {
   //       bool forceRefresh = false,
@@ -265,57 +265,7 @@ class SwiftAgentsClient {
       }
     }
   }
-  // Iterable<String> _extractSseData(List<String> lines) sync* {
-  //   print('\n\n');
-  //   print('LineS: $lines');
-  //   for (final line in lines) {
-  //     print('A Line: $line');
-  //
-  //     final trimmedLine = line.trim();
-  //
-  //     // 1. Skip completely empty lines or lines that define SSE events
-  //     if (trimmedLine.isEmpty || trimmedLine.startsWith('event:')) {
-  //       continue;
-  //     }
-  //
-  //     String jsonString = trimmedLine;
-  //
-  //     // 2. Strip standard SSE data prefix if present
-  //     if (trimmedLine.startsWith('data:')) {
-  //       jsonString = trimmedLine.substring(5).trim();
-  //     }
-  //
-  //     // If the processed string is empty now, skip it
-  //     if (jsonString.isEmpty) {
-  //       continue;
-  //     }
-  //
-  //     try {
-  //       final decoded = jsonDecode(jsonString);
-  //
-  //       if (decoded is Map<String, dynamic> && decoded.containsKey('data')) {
-  //         final dataMap = decoded['data'];
-  //
-  //         if (dataMap is Map<String, dynamic>) {
-  //           final stage = dataMap['stage'];
-  //
-  //           if (stage == 'done') {
-  //             continue;
-  //           }
-  //
-  //           if (dataMap.containsKey('message') && dataMap['message'] != null) {
-  //             yield dataMap['message'].toString();
-  //           }
-  //         }
-  //       }
-  //     } catch (_) {
-  //       // Fallback: If it isn't JSON, don't yield raw SSE text pollution unless it's pure content
-  //       if (!trimmedLine.contains(':')) {
-  //         yield trimmedLine;
-  //       }
-  //     }
-  //   }
-  // }
+
 
   void _handleError(dynamic error, StackTrace trace) {
     int statusCode = 0;

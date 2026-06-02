@@ -50,9 +50,7 @@ class _HomeScreenState extends State<HomeScreen> {
   void _onSubmit(String text) {
     final sdkProvider = context.read<SdkProvider>();
 
-    // Fallback safely to user email or session token if sessionResponse ID isn't ready
-    // final sessionId = sdkProvider.sessionResponse?.sessionId ?? sdkProvider.client.email;
-    final sessionId = 'Session ${sdkProvider.client.email}';
+    final sessionId = sdkProvider.currentSessionId;
 
     sdkProvider.sendMessage(
       sessionId: sessionId,
