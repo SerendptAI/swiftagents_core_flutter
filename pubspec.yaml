@@ -11,7 +11,6 @@ dependencies:
   flutter:
     sdk: flutter
   flutter_svg: ^2.3.0
-  video_player: ^2.11.1
   marqueer: ^2.5.0
   rive: ^0.14.7
   dio: ^5.9.2
@@ -19,8 +18,13 @@ dependencies:
   logger: ^2.7.0
   cached_network_image: ^3.4.1
   internet_connection_checker: ^3.0.1
-  animated_text_kit: ^4.3.0
-
+  enhanced_paginated_view: ^2.0.3
+  permission_handler: ^12.0.3
+  device_info_plus: ^12.4.0
+  image_picker: ^1.2.2
+  file_picker: ^11.0.2
+  shimmer: ^3.0.0
+  crypto: ^3.0.7
 
 dev_dependencies:
   flutter_test:

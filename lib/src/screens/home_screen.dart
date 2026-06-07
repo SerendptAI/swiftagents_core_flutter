@@ -12,7 +12,9 @@ import '../constants/fonts.dart';
 import '../constants/variables.dart';
 import '../controllers/sdk_provider.dart';
 import '../models/msg_model.dart';
+import '../models/upload_attachments_response.dart';
 import '../theme/theme.dart';
+import '../utils/file_util.dart';
 import 'messages_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -26,50 +28,41 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  // void _simulateAgent() {
-  //   messages.add(MsgModel('AGENT IS SEARCHING...', BubbleRole.system));
-  //
-  //
-  //   Timer(const Duration(seconds: 3), () {
-  //     if (!mounted) return;
-  //     setState(() {
-  //       messages.add(MsgModel('Hey there, give me a second let me search', BubbleRole.agent));
-  //     });
-  //
-  //     Future.delayed(Duration(seconds: 1), (){
-  //       setState(() {
-  //         messages.addAll([
-  //         MsgModel("I couldn't find info on the platform. Please hold; our support team send a response via email.", BubbleRole.agent),
-  //         MsgModel("May I have your email address?", BubbleRole.agent),
-  //         ]);
-  //       });
-  //     });
-  //   });
-  // }
-
   void _onSubmit(String text) {
     final sdkProvider = context.read<SdkProvider>();
 
     final sessionId = sdkProvider.currentSessionId;
+    final uploadedFiles = sdkProvider.previousUploadedFiles;
 
     sdkProvider.sendMessage(
       sessionId: sessionId,
       message: text,
     );
+
+    uploadedFiles.clear();
   }
 
+  void _onUpload(List<UploadFile> files) async {
+    final sdkProvider = Provider.of<SdkProvider>(context, listen: false);
+    await sdkProvider.uploadAttachments(files: files);
+  }
+
+  void _onRemove(UploadFile removedFile) {
+    final sdkProvider = Provider.of<SdkProvider>(context, listen: false);
+    sdkProvider.removeUploadedAttachment(file: removedFile);
+  }
 
   @override
   Widget build(BuildContext context) {
     final sdkProvider = context.watch<SdkProvider>();
     final activeMessages = sdkProvider.messages;
+    var selectedIndex = sdkProvider.selectedConversationIndex;
+
     return Column(
       children: [
         TopBar(onMenuTap: widget.onMenuTap, onClose: widget.onClose),
-        activeMessages.isEmpty
-            ? NoMsgWidget(
-                onSuggest: _onSubmit,
-              )
+        activeMessages.isEmpty && (selectedIndex == null)
+            ? NoMsgWidget(onSuggest: _onSubmit)
             : MessagesScreen(
                 messages: activeMessages,
                 onClose: widget.onClose,
@@ -77,12 +70,13 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
         ChatInput(
           onSubmit: _onSubmit,
+          onAttach: _onUpload,
+          onRemove: _onRemove,
         ),
       ],
     );
   }
 }
-
 
 // ***SCREEN-ONLY WIDGETs***
 // 1.
@@ -106,12 +100,7 @@ class _SuggestionChip extends StatelessWidget {
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        margin: EdgeInsets.fromLTRB(
-          isFirst ? 15 : 5,
-          0,
-          isLast ? 80 : 5,
-          0,
-        ),
+        margin: EdgeInsets.fromLTRB(isFirst ? 15 : 5, 0, isLast ? 80 : 5, 0),
         decoration: BoxDecoration(
           border: Border.all(color: t.border, width: 1),
         ),

@@ -1,13 +1,16 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:dio/dio.dart';
 import 'package:swift_agents/src/constants/variables.dart';
 import 'package:swift_agents/src/models/conversation_details_response.dart';
 import 'package:swift_agents/src/models/init_session_response.dart';
 import 'package:swift_agents/src/models/msg_model.dart';
+import 'package:swift_agents/src/models/upload_attachments_response.dart';
 import 'package:swift_agents/src/screens/widgets/chat_bubble.dart';
 import 'package:swift_agents/src/swift_agents_sdk.dart';
+import 'package:swift_agents/src/utils/file_util.dart';
 import 'package:swift_agents/src/utils/logger.dart';
 import '../models/conversations_response.dart';
 
@@ -30,14 +33,12 @@ class SwiftAgentsClient {
 
   void _requireSession() {
     if (_sessionToken == null) {
-      throw StateError(
-        """
+      throw StateError("""
         Swift API called before initialization.
         1. Call SwiftAgentsSdk.initialize( companyId: '****', apiKey: 'swa_****') in main.
         2. Pass SwiftAgentsSdk.getContext(email: 'user***@mail.com') into view
         3. Check your internet connection.
-        """,
-      );
+        """);
     }
   }
 
@@ -80,10 +81,7 @@ class SwiftAgentsClient {
       var response = await dio.get(
         _sdkPath('/conversations'),
         options: Options(headers: _authHeaders),
-        queryParameters: {
-          'cursor': cursor,
-          'limit': limit,
-        },
+        queryParameters: {'cursor': cursor, 'limit': limit},
       );
 
       if (response.data == null) return null;
@@ -117,54 +115,22 @@ class SwiftAgentsClient {
     }
   }
 
-  // Future<SdkConversationDetail> getConversation(
-  //     String conversationId, {
-  //       bool forceRefresh = false,
-  //     }) async {
-  //   _requireSession();
-  //
-  //   final cachedConversation = cache.conversation(
-  //     conversationId,
-  //   );
-  //
-  //   if (
-  //   cachedConversation != null &&
-  //       !forceRefresh
-  //   ) {
-  //     return cachedConversation;
-  //   }
-  //
-  //   try {
-  //     final response = await _dio.get(
-  //       _sdkPath('/conversations/$conversationId'),
-  //       options: Options(
-  //         headers: _authHeaders,
-  //       ),
-  //     );
-  //
-  //     final data = _parseResponse(response.data);
-  //
-  //     final conversation =
-  //     SdkConversationDetail.fromJson(data);
-  //
-  //     cache.saveConversation(conversation);
-  //
-  //     return conversation;
-  //   } on DioException catch (e) {
-  //     throw _handleError(e);
-  //   }
-  // }
-
   Stream<MsgModel> sendMessage({
     required String sessionId,
     required String message,
+    List<AttachmentModel>? attachments,
   }) async* {
     _requireSession();
 
     try {
       final response = await dio.post<ResponseBody>(
         _sdkPath('/chat'),
-        data: {'session_id': sessionId, 'message': message},
+        data: {
+          'session_id': sessionId,
+          'message': message,
+          if (attachments?.isNotEmpty ?? false)
+            'attachments': attachments?.map((a) => a.toJson()).toList(),
+        },
         options: Options(
           headers: _authHeaders,
           responseType: ResponseType.stream,
@@ -187,7 +153,7 @@ class SwiftAgentsClient {
         pendingText = lines.removeLast();
 
         for (final value in _extractSseData(lines)) {
-          if (value.text.isNotEmpty) {
+          if (value.text.isNotEmpty || value.session != null) {
             yield value;
           }
         }
@@ -195,7 +161,7 @@ class SwiftAgentsClient {
 
       if (pendingText.trim().isNotEmpty) {
         for (final value in _extractSseData([pendingText])) {
-          if (value.text.isNotEmpty) {
+          if (value.text.isNotEmpty || value.session != null) {
             yield value;
           }
         }
@@ -206,10 +172,10 @@ class SwiftAgentsClient {
   }
 
   Iterable<MsgModel> _extractSseData(List<String> lines) sync* {
-    // print('\n\n');
-    // print('LineS: $lines');
+    print('\n\n');
+    print('LineS: $lines');
     for (final line in lines) {
-      // print('A Line: $line');
+      print('A Line: $line');
 
       final trimmedLine = line.trim();
 
@@ -240,6 +206,14 @@ class SwiftAgentsClient {
             final stage = dataMap['stage'];
 
             if (stage == 'done') {
+              final sessionData = dataMap['session'];
+              if (sessionData is Map<String, dynamic>) {
+                yield MsgModel(
+                  '', // No visible content string needed
+                  BubbleRole.system,
+                  session: ConversationSession.fromJson(sessionData),
+                );
+              }
               continue;
             }
 
@@ -257,15 +231,46 @@ class SwiftAgentsClient {
       } catch (_) {
         // Fallback: If it isn't JSON, don't yield raw SSE text pollution unless it's pure content
         if (!trimmedLine.contains(':')) {
-          yield MsgModel(
-            trimmedLine,
-            BubbleRole.agent,
-          );
+          yield MsgModel(trimmedLine, BubbleRole.agent);
         }
       }
     }
   }
 
+  Future<UploadAttachmentsResponse?> uploadAttachments({
+    required List<UploadFile> files,
+  }) async {
+    _requireSession();
+
+    try {
+      final multipartFiles = files
+          .where((file) => file.bytes != null)
+          .map(
+            (file) => MultipartFile.fromBytes(file.bytes!, filename: file.name),
+          )
+          .toList();
+
+      FormData formData = FormData.fromMap({'files': multipartFiles});
+
+      final formattedHeaders = {
+        ..._authHeaders,
+        'Content-Type': 'multipart/form-data',
+      };
+
+      final response = await dio.post(
+        _sdkPath('/chat/upload'),
+        data: formData,
+        options: Options(headers: formattedHeaders),
+      );
+
+      if (response.data == null) return null;
+
+      return UploadAttachmentsResponse.fromJson(response.data);
+    } catch (e, t) {
+      _handleError(e, t);
+      return null;
+    }
+  }
 
   void _handleError(dynamic error, StackTrace trace) {
     int statusCode = 0;
@@ -292,28 +297,6 @@ class SwiftAgentsClient {
 
     logError(SwiftAgentsApiException(statusCode, message), trace);
   }
-
-  // void _handleError(error, trace) {
-  //   final statusCode = error.response?.statusCode ?? 0;
-  //
-  //   final responseData = error.response?.data;
-  //
-  //   String message = error.message ?? 'Unknown error';
-  //
-  //   if (responseData is Map<String, dynamic>) {
-  //     message =
-  //         responseData['detail']?.toString() ??
-  //         responseData['message']?.toString() ??
-  //         responseData['error']?.toString() ??
-  //         message;
-  //   } else if (responseData != null) {
-  //     message = responseData.toString();
-  //   } else {
-  //     message = error.toString();
-  //   }
-  //
-  //   logError(SwiftAgentsApiException(statusCode, message), trace) ;
-  // }
 }
 
 class SwiftAgentsApiException implements Exception {

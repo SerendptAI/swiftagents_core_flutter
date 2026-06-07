@@ -1,8 +1,9 @@
 import 'dart:collection';
-
 import 'package:flutter/cupertino.dart';
 import 'package:swift_agents/src/models/conversations_response.dart';
+import 'package:swift_agents/src/models/upload_attachments_response.dart';
 import 'package:swift_agents/src/services/swift_agents_client.dart';
+import 'package:swift_agents/src/utils/file_util.dart';
 import '../models/conversation_details_response.dart';
 import '../models/init_session_response.dart';
 import '../models/msg_model.dart';
@@ -26,8 +27,9 @@ class SdkProvider with ChangeNotifier {
   InitSessionResponse? get sessionResponse => _sessionResponse;
 
   // b. Messages
-  bool _isSendingMessage = false;
-  bool get isSendingMessage => _isSendingMessage;
+  final Map<String, bool> _isSendingMessages = {};
+  bool get isCurrentMsgSending =>
+      _isSendingMessages[_currentSessionId] ?? false;
 
   String _streamedMessage = '';
   String get streamedMessage => _streamedMessage;
@@ -35,7 +37,24 @@ class SdkProvider with ChangeNotifier {
   String? _messageError;
   String? get messageError => _messageError;
 
-  // c. Chat sessions
+  // c. Attached Messages
+  bool _isUploadAttachmentsLoading = false;
+  bool get isUploadAttachmentsLoading => _isUploadAttachmentsLoading;
+
+  UploadAttachmentsResponse? _uploadAttachmentsResponse;
+  UploadAttachmentsResponse? get uploadAttachmentsResponse =>
+      _uploadAttachmentsResponse;
+
+  List<AttachmentModel> _previousUploadedFiles = [];
+  UnmodifiableListView<AttachmentModel> get previousUploadedFiles =>
+      UnmodifiableListView(_previousUploadedFiles);
+
+  // d. Chat sessions
+  int? _selectedConversationIndex;
+  int? get selectedConversationIndex => _selectedConversationIndex;
+  set selectedConversationIndex(int? index) =>
+      _selectedConversationIndex = index;
+
   String? _currentSessionId;
 
   /// GET CURRENT ACTIVE SESSION ID
@@ -47,15 +66,17 @@ class SdkProvider with ChangeNotifier {
   UnmodifiableListView<MsgModel> get messages =>
       UnmodifiableListView(_chatSessions[_currentSessionId] ?? []);
 
-  // d. Conversations
+  // e. Conversations
   bool _isGetConversionsLoading = false;
   bool get isGetConversionsLoading => _isGetConversionsLoading;
 
+  // Backend is the only source of truth.
   ConversationsResponse? _conversationsResponse;
   ConversationsResponse? get conversationsResponse => _conversationsResponse;
 
-  List<ConversationItem> _conversationsList = [];
-  UnmodifiableListView<ConversationItem> get conversationsList =>
+  // does optimistic updates seen in sendMessages, backend not the only source.
+  List<ConversationSession> _conversationsList = [];
+  UnmodifiableListView<ConversationSession> get conversationsList =>
       UnmodifiableListView(_conversationsList);
 
   String? _nextCursor;
@@ -67,8 +88,9 @@ class SdkProvider with ChangeNotifier {
   bool _hasLoadedConversations = false;
   bool get hasLoadedConversations => _hasLoadedConversations;
 
-  bool _isGetConversionMsgesLoading = false;
-  bool get isGetConversionMsgesLoading => _isGetConversionMsgesLoading;
+  final Map<String, bool> _getConversionMsgesLoading = {};
+  bool get isCurrentConversationMsgesLoading =>
+      _getConversionMsgesLoading[_currentSessionId] ?? false;
 
   // UI methods
   /// 1. Create a new chat
@@ -79,13 +101,12 @@ class SdkProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  /// 2. Sets a chat session as
-  void openChat(String sessionId) {
+  /// 2. Sets & open a chat session
+  void openChat(String sessionId, int index) {
     _currentSessionId = sessionId;
     notifyListeners();
-    print('Hello 1');
+
     if (_currentSessionId != null) {
-      print('Hello 2');
       getConversationMessages(sessionId: _currentSessionId!);
     }
   }
@@ -114,13 +135,16 @@ class SdkProvider with ChangeNotifier {
   }
 
   /// 2. Send message
-  Future<void> sendMessage({
+  Future<List<MsgModel>?> sendMessage({
     required String sessionId,
     required String message,
+    // List<AttachmentModel>? attachments, // State handles attachments
   }) async {
-    _isSendingMessage = true;
+    if (_isSendingMessages[sessionId] == true) return null;
+    _isSendingMessages[sessionId] = true;
     _streamedMessage = '';
     _messageError = null;
+    bool hasAddedMessage = false;
 
     final sessionMsgs = _chatSessions.putIfAbsent(sessionId, () => []);
 
@@ -135,12 +159,27 @@ class SdkProvider with ChangeNotifier {
       await for (final chunk in client.sendMessage(
         sessionId: sessionId,
         message: message,
+        attachments: _previousUploadedFiles,
       )) {
-        if (chunk.role != currentActiveRole) {
+        if (!hasAddedMessage) {
+          // if (chunk.role != currentActiveRole) { // Allows persistent display of system message
           currentActiveRole = chunk.role;
           _streamedMessage = '';
           sessionMsgs.add(MsgModel('', currentActiveRole));
           activeMessageIndex = sessionMsgs.length - 1;
+          hasAddedMessage = true;
+          _previousUploadedFiles.clear();
+        }
+
+        // Intercept your session data & update it, if it's attached to the chunk.
+        if (chunk.session != null) {
+          _conversationsList.removeWhere(
+            (session) => session.id == chunk.session?.id,
+          );
+          _conversationsList.insert(0, chunk.session!);
+          _selectedConversationIndex = 0;
+          notifyListeners();
+          continue;
         }
 
         if (chunk.role == BubbleRole.system) {
@@ -150,20 +189,24 @@ class SdkProvider with ChangeNotifier {
         }
 
         if (activeMessageIndex != -1) {
+          currentActiveRole = chunk.role;
           sessionMsgs[activeMessageIndex] = MsgModel(
             _streamedMessage.trim(),
-            currentActiveRole!,
+            currentActiveRole,
           );
         }
 
         notifyListeners();
       }
+
+      return sessionMsgs;
     } catch (e, trace) {
       logError('Error: ${e.toString()}', trace);
     } finally {
-      _isSendingMessage = false;
+      _isSendingMessages[sessionId] = false;
       notifyListeners();
     }
+    return null;
   }
 
   /// 3. Gets Conversations List
@@ -191,7 +234,10 @@ class SdkProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      final response = await client.listConversations(cursor: _nextCursor);
+      final response = await client.listConversations(
+        cursor: _nextCursor,
+        limit: 20,
+      );
 
       if (response != null) {
         final fetchedItems = response.items ?? [];
@@ -217,12 +263,13 @@ class SdkProvider with ChangeNotifier {
     }
   }
 
+  /// 4. Get a Conversation Messages
   Future<ConversationDetailsResponse?> getConversationMessages({
     required String sessionId,
   }) async {
-    if (_isGetConversionMsgesLoading) return null;
+    if (_getConversionMsgesLoading[sessionId] == true) return null;
 
-    _isGetConversionMsgesLoading = true;
+    _getConversionMsgesLoading[sessionId] = true;
     notifyListeners();
 
     try {
@@ -232,7 +279,7 @@ class SdkProvider with ChangeNotifier {
 
       if (details != null) {
         final formattedMsgs = details.messages.map((msg) {
-          final role = msg.role == 'user' ? BubbleRole.user: BubbleRole.agent;
+          final role = msg.role == 'user' ? BubbleRole.user : BubbleRole.agent;
           return MsgModel(msg.content ?? '', role);
         }).toList();
 
@@ -241,8 +288,46 @@ class SdkProvider with ChangeNotifier {
 
       return details;
     } finally {
-      _isGetConversionMsgesLoading = false;
+      _getConversionMsgesLoading[sessionId] = false;
       notifyListeners();
     }
+  }
+
+  /// 5. Upload Attachments
+  Future<UploadAttachmentsResponse?> uploadAttachments({
+    required List<UploadFile> files,
+  }) async {
+    if (_isUploadAttachmentsLoading) return null;
+
+    _isUploadAttachmentsLoading = true;
+    notifyListeners();
+
+    try {
+      // Check if file has been uploaded before, if true don't re-upload.
+      final uploadedNames = _previousUploadedFiles
+          .map((e) => e.filename)
+          .toSet();
+
+      files.removeWhere((file) => uploadedNames.contains(file.name));
+
+      final aResponse = await client.uploadAttachments(files: files);
+
+      if (aResponse != null) {
+        _uploadAttachmentsResponse = aResponse;
+        _previousUploadedFiles.addAll(aResponse.attachments ?? []);
+      }
+      notifyListeners();
+
+      return aResponse;
+    } finally {
+      _isUploadAttachmentsLoading = false;
+      notifyListeners();
+    }
+  }
+
+  void removeUploadedAttachment({required UploadFile file}) {
+    _previousUploadedFiles.removeWhere(
+      (pUFile) => pUFile.filename == file.name,
+    );
   }
 }

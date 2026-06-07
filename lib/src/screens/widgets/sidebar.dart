@@ -1,9 +1,9 @@
+import 'package:enhanced_paginated_view/enhanced_paginated_view.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
 import 'package:swift_agents/src/controllers/sdk_provider.dart';
 import 'package:swift_agents/src/models/conversations_response.dart';
-
+import 'package:swift_agents/src/screens/widgets/custom_shimmer.dart';
 import '../../../swift_agents.dart';
 import '../../constants/fonts.dart';
 import '../../constants/variables.dart';
@@ -25,39 +25,13 @@ class SidebarWidget extends StatefulWidget {
 }
 
 class _SidebarWidgetState extends State<SidebarWidget> {
-  int? selectedIndex;
-  late ScrollController _scrollController;
-
-  @override
-  void initState() {
-    super.initState();
-    _scrollController = ScrollController();
-    _scrollController.addListener(_paginationListener);
-  }
-
-  void _paginationListener() {
-    final provider = context.read<SdkProvider>();
-
-    if (_scrollController.position.pixels >=
-        _scrollController.position.maxScrollExtent - 200) {
-      if (!provider.isGetConversionsLoading && provider.hasNext) {
-        provider.getConversations();
-      }
-    }
-  }
-
-  @override
-  void dispose() {
-    _scrollController.dispose();
-    super.dispose();
-  }
-
   @override
   Widget build(BuildContext context) {
     final t = SwiftAgentsTheme.of(context);
     final sdkProvider = Provider.of<SdkProvider>(context);
     final recents = sdkProvider.conversationsList;
     final hasNext = sdkProvider.hasNext;
+    final selectedIndex = sdkProvider.selectedConversationIndex;
 
     return Container(
       height: double.maxFinite,
@@ -101,31 +75,78 @@ class _SidebarWidgetState extends State<SidebarWidget> {
           const SizedBox(height: 12),
 
           Expanded(
-            child: ListView.separated(
-              physics: const BouncingScrollPhysics(
-                parent: AlwaysScrollableScrollPhysics(),
+            child: EnhancedPaginatedView(
+              hasReachedMax: !hasNext,
+              onLoadMore: (int page) {
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  sdkProvider.getConversations();
+                });
+              },
+              onRefresh: () async {
+                sdkProvider.getConversations(refresh: recents.isEmpty);
+              },
+              refreshBuilder: (context, onRefresh, child) {
+                return RefreshIndicator(
+                  color: t.sidebarBg,
+                  backgroundColor: Colors.grey[300],
+                  onRefresh: onRefresh,
+                  child: child,
+                );
+              },
+              itemsPerPage: 20,
+              delegate: EnhancedDelegate(
+                physics: AlwaysScrollableScrollPhysics(),
+                listOfData: recents,
+                status: EnhancedStatus.loaded,
+                emptyWidgetConfig: EmptyWidgetConfig(
+                  customView: CustomShimmer(
+                    physics: NeverScrollableScrollPhysics(),
+                    itemCount: 2,
+                    topPadding: 15,
+                  ),
+                ),
               ),
-              separatorBuilder: (_, __) => const SizedBox(height: 0),
-              itemCount: recents.length + (hasNext ? 0 : 0),
-              itemBuilder: (context, index) {
-                final recent = recents[index];
-                if (index == recents.length) {
-                  return const Padding(
-                    padding: EdgeInsets.all(16),
-                    child: Center(child: CircularProgressIndicator()),
-                  );
-                }
+              builder: (items, physics, reverse, shrinkWrap) {
+                return ListView.separated(
+                  physics: physics,
+                  reverse: reverse,
+                  shrinkWrap: shrinkWrap,
+                  separatorBuilder: (_, __) => const SizedBox(height: 0),
+                  itemCount: recents.length,
+                  itemBuilder: (context, index) {
+                    final recent = recents[index];
 
-                return _RecentItem(
-                  index: index,
-                  selectedIndex: selectedIndex,
-                  onTap: () {
-                    if (recent.id != null) {
-                      setState(() => selectedIndex = index);
-                      sdkProvider.openChat(recent.id!);
-                    }
+                    return Column(
+                      mainAxisAlignment: MainAxisAlignment.start,
+                      children: [
+                        if (index == 0 && (selectedIndex == null))
+                          _NewChat(
+                            onTap: () {
+                              widget.onClose?.call();
+                            },
+                          ),
+                        _RecentItem(
+                          index: index,
+                          selectedIndex: selectedIndex,
+                          onTap: () {
+                            if (recent.id != null) {
+                              // selectedIndex = index;
+                              sdkProvider.selectedConversationIndex = index;
+                              sdkProvider.openChat(recent.id!, index);
+                            }
+                          },
+                          item: recent,
+                        ),
+                        if (((index + 1) == recents.length) &&
+                            sdkProvider.isGetConversionsLoading)
+                          CustomShimmer(
+                            physics: NeverScrollableScrollPhysics(),
+                            itemCount: 2,
+                            height: 150,
+                          ),
+                      ],
+                    );
                   },
-                  item: recent,
                 );
               },
             ),
@@ -137,7 +158,7 @@ class _SidebarWidgetState extends State<SidebarWidget> {
           InkWell(
             onTap: () {
               widget.onNewChat?.call();
-              selectedIndex = null;
+              sdkProvider.selectedConversationIndex = null;
             },
             child: Container(
               height: 50,
@@ -180,11 +201,59 @@ class _SidebarWidgetState extends State<SidebarWidget> {
   }
 }
 
+class _NewChat extends StatefulWidget {
+  final void Function() onTap;
+
+  const _NewChat({required this.onTap});
+
+  @override
+  State<_NewChat> createState() => _NewChatState();
+}
+
+class _NewChatState extends State<_NewChat> {
+  bool isSelected = false;
+  @override
+  void initState() {
+    Future.delayed(Duration(milliseconds: 5), () {
+      setState(() => isSelected = true);
+    });
+    super.initState();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final style = TextStyle(
+      fontSize: 14,
+      fontWeight: FontWeight.w400,
+      color: Colors.black,
+      fontFamily: Fonts.dmMono,
+      package: Variables.sdkName,
+    );
+
+    return GestureDetector(
+      onTap: widget.onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeOut,
+        height: 40,
+        margin: EdgeInsets.symmetric(vertical: 3),
+        padding: const EdgeInsets.symmetric(horizontal: 14),
+        alignment: Alignment.centerLeft,
+        decoration: BoxDecoration(
+          color: isSelected ? Colors.white : Colors.transparent,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Text('New Chat', overflow: TextOverflow.ellipsis, style: style),
+      ),
+    );
+  }
+}
+
 class _RecentItem extends StatelessWidget {
   final int index;
   final int? selectedIndex;
   final void Function() onTap;
-  final ConversationItem item;
+  final ConversationSession item;
 
   const _RecentItem({
     required this.index,
@@ -222,8 +291,7 @@ class _RecentItem extends StatelessWidget {
           borderRadius: BorderRadius.circular(12),
         ),
         child: Text(
-          item.lastMessage ?? '',
-          // item.subject ?? '',
+          item.subject ?? item.lastMessage ?? item.type ?? '',
           overflow: TextOverflow.ellipsis,
           style: style,
         ),

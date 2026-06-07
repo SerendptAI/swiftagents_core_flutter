@@ -37,6 +37,7 @@ class SwiftAgentsView extends StatelessWidget {
   Widget build(BuildContext context) {
     final ctxSdkProvider = sdkContext.sdkProvider;
     final ctxOnlineProvider = sdkContext.onlineProvider;
+    final ctxPermissionsProvider = sdkContext.permissionsProvider;
 
 
     return SwiftAgentsTheme(
@@ -45,6 +46,7 @@ class SwiftAgentsView extends StatelessWidget {
         providers: [
           ChangeNotifierProvider.value(value: ctxSdkProvider),
           ChangeNotifierProvider.value(value: ctxOnlineProvider),
+          ChangeNotifierProvider.value(value: ctxPermissionsProvider),
         ],
         child: _SwiftAgentsViewBody(
           theme: theme,
@@ -67,7 +69,6 @@ class _SwiftAgentsViewBodyState extends State<_SwiftAgentsViewBody>
     with SingleTickerProviderStateMixin {
   final int sidebarMilliSecond = 260;
 
-  // StreamSubscription? onlineStream;
   late AnimationController _animationController;
 
   void checkInternetConnection() {
@@ -106,7 +107,6 @@ class _SwiftAgentsViewBodyState extends State<_SwiftAgentsViewBody>
   @override
   void dispose() {
     _animationController.dispose();
-    // onlineStream?.cancel();
     super.dispose();
   }
 

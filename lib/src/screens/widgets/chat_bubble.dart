@@ -48,7 +48,7 @@ class _ChatBubbleState extends State<ChatBubble> {
     final sdkProvider = Provider.of<SdkProvider>(context, listen: false);
     final msg = widget.message;
     final lastMsg = sdkProvider.messages.last;
-    final isStreaming = sdkProvider.isSendingMessage;
+    final isStreaming = sdkProvider.isCurrentMsgSending;
 
     final isLast = lastMsg == msg;
 
@@ -92,7 +92,7 @@ class _ChatBubbleState extends State<ChatBubble> {
       return Padding(
         padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 16),
         child: Text(
-          msg.text, // System texts show instantly
+          msg.text.toUpperCase(), // System texts show instantly
           style: TextStyle(
             color: t.foreground,
             fontSize: 12,
@@ -123,7 +123,7 @@ class _ChatBubbleState extends State<ChatBubble> {
             fontSize: 14,
             height: 1.35,
             fontFamily: Fonts.stoizi,
-            fontWeight: FontWeight.w300,
+            fontWeight: FontWeight.w400,
             package: Variables.sdkName,
           ),
         ),

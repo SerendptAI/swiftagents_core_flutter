@@ -1,6 +1,7 @@
 // lib/src/utils/rive_initializer.dart
 import 'package:dio/dio.dart';
 import 'package:rive/rive.dart';
+import 'package:swift_agents/src/controllers/permissions_provider.dart';
 import 'package:swift_agents/src/models/swift_agents_context.dart';
 import 'package:swift_agents/src/services/interceptors/api_logger_interceptor.dart';
 import 'package:swift_agents/src/services/swift_agents_client.dart';
@@ -99,8 +100,8 @@ class SwiftAgentsSdk {
       email: email,
       dio: Dio(BaseOptions(
           baseUrl: Variables.apiBaseUrl,
-        connectTimeout: Duration(seconds: 20),
-        receiveTimeout: Duration(seconds: 35),
+        connectTimeout: Duration(seconds: 30),
+        receiveTimeout: Duration(seconds: 180),
         followRedirects: false,
       ),
       ),
@@ -114,6 +115,7 @@ class SwiftAgentsSdk {
         client: client,
         sdkProvider: SdkProvider(client),
         onlineProvider: OnlineProvider(),
+        permissionsProvider: PermissionsProvider(),
       ),
     );
   }

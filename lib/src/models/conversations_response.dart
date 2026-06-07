@@ -1,5 +1,5 @@
 class ConversationsResponse {
-  final List<ConversationItem>? items;
+  final List<ConversationSession>? items;
   final String? nextCursor;
   final bool hasNext;
 
@@ -12,7 +12,7 @@ class ConversationsResponse {
   factory ConversationsResponse.fromJson(Map<String, dynamic> json) {
     return ConversationsResponse(
       items: (json['items'] as List<dynamic>?)
-          ?.map((e) => ConversationItem.fromJson(e))
+          ?.map((e) => ConversationSession.fromJson(e))
           .toList(),
       nextCursor: json['next_cursor'],
       hasNext: json['has_next'] ?? false,
@@ -28,7 +28,7 @@ class ConversationsResponse {
   }
 }
 
-class ConversationItem {
+class ConversationSession {
   final String? id;
   final String? type;
   final String? subject;
@@ -38,7 +38,7 @@ class ConversationItem {
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
-  ConversationItem({
+  ConversationSession({
     this.id,
     this.type,
     this.subject,
@@ -49,8 +49,8 @@ class ConversationItem {
     this.updatedAt,
   });
 
-  factory ConversationItem.fromJson(Map<String, dynamic> json) {
-    return ConversationItem(
+  factory ConversationSession.fromJson(Map<String, dynamic> json) {
+    return ConversationSession(
       id: json['id'],
       type: json['type'],
       subject: json['subject'],
