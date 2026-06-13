@@ -172,10 +172,10 @@ class SwiftAgentsClient {
   }
 
   Iterable<MsgModel> _extractSseData(List<String> lines) sync* {
-    print('\n\n');
-    print('LineS: $lines');
+    // print('\n\n');
+    // print('LineS: $lines');
     for (final line in lines) {
-      print('A Line: $line');
+      // print('A Line: $line');
 
       final trimmedLine = line.trim();
 
@@ -211,6 +211,7 @@ class SwiftAgentsClient {
                 yield MsgModel(
                   '', // No visible content string needed
                   BubbleRole.system,
+                  null,
                   session: ConversationSession.fromJson(sessionData),
                 );
               }
@@ -223,7 +224,7 @@ class SwiftAgentsClient {
 
               yield MsgModel(
                 msg.toString(),
-                isSystem ? BubbleRole.system : BubbleRole.agent,
+                isSystem ? BubbleRole.system : BubbleRole.agent, null
               );
             }
           }
@@ -231,7 +232,7 @@ class SwiftAgentsClient {
       } catch (_) {
         // Fallback: If it isn't JSON, don't yield raw SSE text pollution unless it's pure content
         if (!trimmedLine.contains(':')) {
-          yield MsgModel(trimmedLine, BubbleRole.agent);
+          yield MsgModel(trimmedLine, BubbleRole.agent, null);
         }
       }
     }
@@ -239,6 +240,7 @@ class SwiftAgentsClient {
 
   Future<UploadAttachmentsResponse?> uploadAttachments({
     required List<UploadFile> files,
+    required void Function(double progress)? onProgress,
   }) async {
     _requireSession();
 
@@ -261,6 +263,11 @@ class SwiftAgentsClient {
         _sdkPath('/chat/upload'),
         data: formData,
         options: Options(headers: formattedHeaders),
+        onSendProgress: (sent, total) {
+          if (total > 0) {
+            onProgress?.call(sent / total);
+          }
+        },
       );
 
       if (response.data == null) return null;

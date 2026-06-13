@@ -30,8 +30,9 @@ class CustomShimmer extends StatelessWidget {
           return Padding(
             padding: EdgeInsets.only(top: index == 0 ? topPadding : 8),
             child: Shimmer.fromColors(
-              baseColor: t.sidebarBg, // Light gray background
+              baseColor: t.sidebarBg,
               highlightColor: Colors.grey[100]!, // Lighter gray shimmer
+              period: Duration(milliseconds: 1200 + (80 * index)),
               child: Padding(
                 padding: const EdgeInsets.symmetric(
                   vertical: 10,

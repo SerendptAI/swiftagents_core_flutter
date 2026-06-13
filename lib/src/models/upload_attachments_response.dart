@@ -35,6 +35,33 @@ class AttachmentModel {
     this.filename,
   });
 
+  bool get isImage {
+    final ext = url?.toLowerCase() ?? '';
+
+    return ext.endsWith('.png') ||
+        ext.endsWith('.jpg') ||
+        ext.endsWith('.jpeg') ||
+        ext.endsWith('.gif') ||
+        ext.endsWith('.webp') ||
+        ext.endsWith('.heic');
+  }
+
+  String? get getFileExtension {
+    if (url == null) return null;
+    final uri = Uri.parse(url!);
+    final filename = uri.pathSegments.isNotEmpty
+        ? uri.pathSegments.last
+        : '';
+
+    final dotIndex = filename.lastIndexOf('.');
+
+    if (dotIndex == -1 || dotIndex == filename.length - 1) {
+      return null;
+    }
+
+    return filename.substring(dotIndex + 1).toLowerCase();
+  }
+
   factory AttachmentModel.fromJson(
     Map<String, dynamic> json,
   ) {

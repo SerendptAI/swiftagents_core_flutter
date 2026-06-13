@@ -23,8 +23,8 @@ class SdkProvider with ChangeNotifier {
   bool _isInitialized = false;
   bool get isInitialized => _isInitialized;
 
-  InitSessionResponse? _sessionResponse;
-  InitSessionResponse? get sessionResponse => _sessionResponse;
+  InitSessionResponse? _initSessionResponse;
+  InitSessionResponse? get initSessionResponse => _initSessionResponse;
 
   // b. Messages
   final Map<String, bool> _isSendingMessages = {};
@@ -40,6 +40,11 @@ class SdkProvider with ChangeNotifier {
   // c. Attached Messages
   bool _isUploadAttachmentsLoading = false;
   bool get isUploadAttachmentsLoading => _isUploadAttachmentsLoading;
+
+  bool _isNewFilesUploaded  = false;
+  bool get isNewFilesUploaded => _isNewFilesUploaded;
+
+  final ValueNotifier<double> uploadProgress = ValueNotifier(0.0);
 
   UploadAttachmentsResponse? _uploadAttachmentsResponse;
   UploadAttachmentsResponse? get uploadAttachmentsResponse =>
@@ -122,7 +127,7 @@ class SdkProvider with ChangeNotifier {
     InitSessionResponse? session = await client.initialize();
 
     if (session != null) {
-      _sessionResponse = session;
+      _initSessionResponse = session;
       _isInitialized = true;
       debugPrint('USER(${client.email}) SESSION INITIATED');
     }
@@ -138,9 +143,11 @@ class SdkProvider with ChangeNotifier {
   Future<List<MsgModel>?> sendMessage({
     required String sessionId,
     required String message,
-    // List<AttachmentModel>? attachments, // State handles attachments
   }) async {
-    if (_isSendingMessages[sessionId] == true) return null;
+    if (_isSendingMessages[sessionId] == true ||
+        !_isInitialized ||
+        !_isUploadAttachmentsLoading)
+      return null;
     _isSendingMessages[sessionId] = true;
     _streamedMessage = '';
     _messageError = null;
@@ -148,13 +155,14 @@ class SdkProvider with ChangeNotifier {
 
     final sessionMsgs = _chatSessions.putIfAbsent(sessionId, () => []);
 
-    sessionMsgs.add(MsgModel(message, BubbleRole.user));
+    sessionMsgs.add(MsgModel(message, BubbleRole.user, _previousUploadedFiles));
     notifyListeners();
 
     // 1. Declare these outside so they are accessible in the finally block
     BubbleRole? currentActiveRole;
     int activeMessageIndex = -1;
 
+    if (!_isInitialized) return null;
     try {
       await for (final chunk in client.sendMessage(
         sessionId: sessionId,
@@ -165,7 +173,9 @@ class SdkProvider with ChangeNotifier {
           // if (chunk.role != currentActiveRole) { // Allows persistent display of system message
           currentActiveRole = chunk.role;
           _streamedMessage = '';
-          sessionMsgs.add(MsgModel('', currentActiveRole));
+          sessionMsgs.add(
+            MsgModel('', currentActiveRole, null),
+          ); // AI doesn't send attachments yet
           activeMessageIndex = sessionMsgs.length - 1;
           hasAddedMessage = true;
           _previousUploadedFiles.clear();
@@ -193,6 +203,7 @@ class SdkProvider with ChangeNotifier {
           sessionMsgs[activeMessageIndex] = MsgModel(
             _streamedMessage.trim(),
             currentActiveRole,
+            null,
           );
         }
 
@@ -216,7 +227,7 @@ class SdkProvider with ChangeNotifier {
     /// This checks if Conversations has been fetched atleast once
     bool checkConversationsLoaded = false,
   }) async {
-    if (_isGetConversionsLoading || !_isInitialized) return null;
+    if (_isGetConversionsLoading || !_isInitialized || _isUploadAttachmentsLoading) return null;
     if (checkConversationsLoaded && _hasLoadedConversations) return null;
 
     if (refresh) {
@@ -280,7 +291,7 @@ class SdkProvider with ChangeNotifier {
       if (details != null) {
         final formattedMsgs = details.messages.map((msg) {
           final role = msg.role == 'user' ? BubbleRole.user : BubbleRole.agent;
-          return MsgModel(msg.content ?? '', role);
+          return MsgModel(msg.content ?? '', role, msg.attachments);
         }).toList();
 
         _chatSessions[details.id] = formattedMsgs;
@@ -299,7 +310,10 @@ class SdkProvider with ChangeNotifier {
   }) async {
     if (_isUploadAttachmentsLoading) return null;
 
+    uploadProgress.value = 0.0;
     _isUploadAttachmentsLoading = true;
+    _isNewFilesUploaded = false;
+
     notifyListeners();
 
     try {
@@ -308,13 +322,30 @@ class SdkProvider with ChangeNotifier {
           .map((e) => e.filename)
           .toSet();
 
-      files.removeWhere((file) => uploadedNames.contains(file.name));
+      final deLinkedFiles = List.of(files);
+      deLinkedFiles.removeWhere((file) => uploadedNames.contains(file.name));
+      
+      if (deLinkedFiles.isNotEmpty) {
+        _isNewFilesUploaded = false;
+        notifyListeners();
+      } else {
+        // return early if no new files to upload, but still notify listeners to update UI.
+        _isNewFilesUploaded = true;
+        notifyListeners();
+        return _uploadAttachmentsResponse;
+      }
 
-      final aResponse = await client.uploadAttachments(files: files);
+      final aResponse = await client.uploadAttachments(
+        files: deLinkedFiles,
+        onProgress: (double progress) {
+          uploadProgress.value = progress;
+        },
+      );
 
       if (aResponse != null) {
         _uploadAttachmentsResponse = aResponse;
         _previousUploadedFiles.addAll(aResponse.attachments ?? []);
+        _isNewFilesUploaded = true;
       }
       notifyListeners();
 

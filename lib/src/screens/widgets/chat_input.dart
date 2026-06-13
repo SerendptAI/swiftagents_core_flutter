@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:provider/provider.dart';
 import 'package:swift_agents/src/controllers/sdk_provider.dart';
+import 'package:swift_agents/src/utils/file_validation_util.dart';
 
 import '../../../swift_agents.dart';
 import '../../constants/fonts.dart';
@@ -42,9 +43,17 @@ class _ChatInputState extends State<ChatInput> {
     if (remainingSlots <= 0) {
       return;
     }
-    _selectedFiles.addAll(files.take(remainingSlots));
 
-    widget.onAttach?.call(_selectedFiles);
+    final sdkProvider = Provider.of<SdkProvider>(context, listen: false);
+    final isAnyMaxSize = _selectedFiles.any((sFiles) => sFiles.isMaxSize);
+
+    files.removeWhere((file) => _selectedFiles.any((sfile) => sfile.name == file.name));
+    _selectedFiles.addAll(files.take(remainingSlots));
+    
+
+    print('isAnyMaxSize: $isAnyMaxSize');
+
+    if (!isAnyMaxSize) widget.onAttach?.call(_selectedFiles);
 
     setState(() {});
   }
@@ -73,7 +82,6 @@ class _ChatInputState extends State<ChatInput> {
   void _removeFile(int index) {
     widget.onRemove?.call(_selectedFiles[index]);
     _selectedFiles.removeAt(index);
-    widget.onAttach?.call(_selectedFiles);
     setState(() {});
   }
 
@@ -85,8 +93,23 @@ class _ChatInputState extends State<ChatInput> {
   }
 
   void _send() {
+    final sdkProvider = Provider.of<SdkProvider>(context, listen: false);
+    final isAnyMaxSize = _selectedFiles.any((sFiles) => sFiles.isMaxSize);
     final text = _controller.text.trim();
-    if (text.isEmpty) return;
+
+    if (text.isEmpty ||
+        !sdkProvider.isInitialized ||
+        !sdkProvider.isUploadAttachmentsLoading ||
+        !sdkProvider.isNewFilesUploaded)
+      return;
+
+    if (isAnyMaxSize) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Max file size exceeded (5MB max).')),
+      );
+      return;
+    }
+
     widget.onSubmit?.call(text);
     _selectedFiles.clear();
     _controller.clear();
@@ -97,73 +120,119 @@ class _ChatInputState extends State<ChatInput> {
     final t = SwiftAgentsTheme.of(context);
     final sdkProvider = Provider.of<SdkProvider>(context);
     final isMsgSending = sdkProvider.isCurrentMsgSending;
+    final isFileUploading = sdkProvider.isUploadAttachmentsLoading;
+    final isNewFilesUploaded = sdkProvider.isNewFilesUploaded;
 
     return Column(
       children: [
         if (_selectedFiles.isNotEmpty)
           Container(
             height: 80,
-            margin: EdgeInsets.only(bottom: 14),
+            margin: EdgeInsets.only(right: 15, left: 15, bottom: 5),
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
               itemCount: _selectedFiles.length,
               separatorBuilder: (_, __) => const SizedBox(width: 8),
               itemBuilder: (context, index) {
                 final file = _selectedFiles[index];
+                final isMaxSize = file.isMaxSize;
+                final isFileAlreadyUploaded = sdkProvider.previousUploadedFiles
+                    .any((pfile) => pfile.filename == file.name);
 
-                return Stack(
-                  children: [
-                    Container(
-                      width: 80,
-                      height: 80,
-                      decoration: BoxDecoration(
-                        border: Border.all(color: t.border),
-                        borderRadius: BorderRadius.circular(8),
+                return Container(
+                  width: 90,
+                  height: 80,
+                  decoration: BoxDecoration(
+                    border: Border.all(color: t.border),
+                    borderRadius: BorderRadius.circular(8),
+                    color: t.foreground.withOpacity(0.05),
+                  ),
+                  clipBehavior: Clip.hardEdge,
+                  child: Stack(
+                    alignment: AlignmentGeometry.center,
+                    children: [
+                      SizedBox(
+                        width: 90,
+                        height: 80,
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: file.isImage && (file.bytes != null)
+                              ? Image.memory(file.bytes!, fit: BoxFit.cover)
+                              : Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(Icons.insert_drive_file, color: t.foreground),
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 4,
+                                      ),
+                                      child: Text(
+                                        FileUtils.getFileNameFromSignature(file.name),
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                        textAlign: TextAlign.center,
+                                        style: TextStyle(fontSize: 10, color: t.foreground),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                        ),
                       ),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(8),
-                        child: file.isImage
-                            ? Image.memory(file.bytes!, fit: BoxFit.cover)
-                            : Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
+                      if (isMaxSize ||
+                          (isFileUploading && !isFileAlreadyUploaded))
+                        Container(color:isMaxSize?Colors.black54: Colors.black26, width: 90, height: 90),
+                      if (!isMaxSize &&
+                          isFileUploading &&
+                          !isFileAlreadyUploaded)
+                        ValueListenableBuilder<double>(
+                          valueListenable: sdkProvider.uploadProgress,
+                          builder: (context, progress, _) {
+                            return CircularProgressIndicator(
+                              value: progress,
+                              color: Colors.white,
+                              backgroundColor: Colors.white24,
+                            );
+                          },
+                        ),
+                      if (isMaxSize)
+                        Column(
+                          mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Icon(Icons.insert_drive_file),
-                            Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 4,
-                              ),
-                              child: Text(
-                                file.name,
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                                textAlign: TextAlign.center,
-                                style: const TextStyle(fontSize: 10),
+                            Icon(Icons.delete, color: Colors.grey[100]),
+                            SizedBox(height: 3),
+                            Text(
+                              'File size\nexceeded(5MB max).',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: 10.5,
+                                color: Colors.grey[100],
+                                fontWeight: FontWeight.w600,
+                                fontFamily: Fonts.dmMono,
+                                package: Variables.sdkName,
                               ),
                             ),
                           ],
                         ),
-                      ),
-                    ),
-
-                    Positioned(
-                      right: 0,
-                      top: 0,
-                      child: GestureDetector(
-                        onTap: () => _removeFile(index),
-                        child: Container(
-                          decoration: const BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: Colors.black54,
-                          ),
-                          child: const Icon(
-                            Icons.close,
-                            size: 16,
-                            color: Colors.white,
+                      Positioned(
+                        right: 3,
+                        top: 3,
+                        child: GestureDetector(
+                          onTap: () => _removeFile(index),
+                          child: Container(
+                            decoration: const BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: Colors.black54,
+                            ),
+                            child: const Icon(
+                              Icons.close,
+                              size: 16,
+                              color: Colors.white,
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 );
               },
             ),
@@ -184,7 +253,11 @@ class _ChatInputState extends State<ChatInput> {
                 controller: _controller,
                 focusNode: _focusNode,
                 onSubmitted: (_) => _send(),
-                style: TextStyle(fontSize: 14),
+                style: TextStyle(
+                  fontSize: 14,
+                  fontFamily: Fonts.stoizi,
+                  package: Variables.sdkName,
+                ),
                 decoration: InputDecoration(
                   hintText: widget.hintText,
                   hintStyle: TextStyle(
@@ -216,13 +289,17 @@ class _ChatInputState extends State<ChatInput> {
                   GestureDetector(
                     onTap: () => _send(),
                     child: Opacity(
-                      opacity: isMsgSending ? 0.5: 1,
+                      opacity:
+                          (isMsgSending ||
+                              isFileUploading ||
+                              !isNewFilesUploaded)
+                          ? 0.5
+                          : 1,
                       child: SvgPicture.asset(
                         'assets/svgs/send.svg',
                         package: Variables.sdkName,
                         width: 33,
                         height: 33,
-                        // colorFilter: ColorFilter.mode(Color(0xFF333333), BlendMode.srcIn),
                       ),
                     ),
                   ),
@@ -260,17 +337,9 @@ class _ChatInputState extends State<ChatInput> {
         padding: const EdgeInsets.all(14),
         child: Row(
           children: [
-            Icon(
-              icon,
-              color: Colors.white,
-            ),
+            Icon(icon, color: Colors.white),
             const SizedBox(width: 12),
-            Text(
-              title,
-              style: const TextStyle(
-                color: Colors.white,
-              ),
-            ),
+            Text(title, style: const TextStyle(color: Colors.white)),
           ],
         ),
       ),
@@ -279,7 +348,7 @@ class _ChatInputState extends State<ChatInput> {
 
   void _showAttachmentMenu() {
     final RenderBox renderBox =
-    _attachKey.currentContext!.findRenderObject() as RenderBox;
+        _attachKey.currentContext!.findRenderObject() as RenderBox;
 
     final position = renderBox.localToGlobal(Offset.zero);
 
@@ -290,16 +359,12 @@ class _ChatInputState extends State<ChatInput> {
             GestureDetector(
               behavior: HitTestBehavior.translucent,
               onTap: _removeAttachmentMenu,
-              child: Container(
-                color: Colors.transparent,
-              ),
+              child: Container(color: Colors.transparent),
             ),
 
             Positioned(
               left: position.dx,
-              bottom: MediaQuery.of(context).size.height -
-                  position.dy +
-                  10,
+              bottom: MediaQuery.of(context).size.height - position.dy + 10,
               child: Material(
                 color: Colors.transparent,
                 child: Container(

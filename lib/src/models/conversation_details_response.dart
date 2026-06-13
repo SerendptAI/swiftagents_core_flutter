@@ -1,3 +1,5 @@
+import 'package:swift_agents/src/models/upload_attachments_response.dart';
+
 class ConversationDetailsResponse {
   final String id;
   final String? type;
@@ -58,11 +60,13 @@ class ConversationMessage {
   final String? role;
   final String? content;
   final DateTime? timestamp;
+  final List<AttachmentModel>? attachments;
 
   ConversationMessage({
     this.role,
     this.content,
     this.timestamp,
+    this.attachments,
   });
 
   factory ConversationMessage.fromJson(
@@ -74,6 +78,9 @@ class ConversationMessage {
       timestamp: json['timestamp'] != null
           ? DateTime.tryParse(json['timestamp'])
           : null,
+      attachments: (json['attachments'] as List<dynamic>?)
+          ?.map((e) => AttachmentModel.fromJson(e))
+          .toList(),
     );
   }
 
@@ -82,6 +89,7 @@ class ConversationMessage {
       'role': role,
       'content': content,
       'timestamp': timestamp?.toIso8601String(),
+      'attachments': attachments?.map((e) => e.toJson()).toList(),
     };
   }
 }

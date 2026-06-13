@@ -27,7 +27,7 @@ class TopBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = SwiftAgentsTheme.of(context);
     final sdkProvider = Provider.of<SdkProvider>(context);
-    final company = sdkProvider.sessionResponse?.company;
+    final company = sdkProvider.initSessionResponse?.company;
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),

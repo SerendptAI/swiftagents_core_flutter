@@ -88,7 +88,7 @@ class _SidebarWidgetState extends State<SidebarWidget> {
               refreshBuilder: (context, onRefresh, child) {
                 return RefreshIndicator(
                   color: t.sidebarBg,
-                  backgroundColor: Colors.grey[300],
+                  backgroundColor: Colors.grey[100],
                   onRefresh: onRefresh,
                   child: child,
                 );
@@ -101,8 +101,9 @@ class _SidebarWidgetState extends State<SidebarWidget> {
                 emptyWidgetConfig: EmptyWidgetConfig(
                   customView: CustomShimmer(
                     physics: NeverScrollableScrollPhysics(),
-                    itemCount: 2,
-                    topPadding: 15,
+                    itemCount: 3,
+                    topPadding: 10,
+                    height: 180,
                   ),
                 ),
               ),

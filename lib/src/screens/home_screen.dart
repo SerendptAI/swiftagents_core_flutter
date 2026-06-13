@@ -4,15 +4,12 @@ import 'package:flutter/material.dart';
 import 'package:marqueer/marqueer.dart';
 import 'package:provider/provider.dart';
 import 'package:swift_agents/src/screens/widgets/animated_avatar_player.dart';
-import 'package:swift_agents/src/screens/widgets/chat_bubble.dart';
 import 'package:swift_agents/src/screens/widgets/chat_input.dart';
 import 'package:swift_agents/src/screens/widgets/top_bar.dart';
 import '../../swift_agents.dart';
 import '../constants/fonts.dart';
 import '../constants/variables.dart';
 import '../controllers/sdk_provider.dart';
-import '../models/msg_model.dart';
-import '../models/upload_attachments_response.dart';
 import '../theme/theme.dart';
 import '../utils/file_util.dart';
 import 'messages_screen.dart';
@@ -32,14 +29,11 @@ class _HomeScreenState extends State<HomeScreen> {
     final sdkProvider = context.read<SdkProvider>();
 
     final sessionId = sdkProvider.currentSessionId;
-    final uploadedFiles = sdkProvider.previousUploadedFiles;
 
     sdkProvider.sendMessage(
       sessionId: sessionId,
       message: text,
     );
-
-    uploadedFiles.clear();
   }
 
   void _onUpload(List<UploadFile> files) async {
@@ -128,17 +122,14 @@ class NoMsgWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final sdkProvider =  Provider.of<SdkProvider>(context);
     final t = SwiftAgentsTheme.of(context);
 
-    final suggestions = const [
-      'WHAT IS THIS COMPANY ABOUT',
-      'WHAT ARE THE HOURS',
-      'NEED HELP WITH BILLING',
-      'ADD A CARD?',
-    ];
+    final suggestions = sdkProvider.initSessionResponse?.company?.suggestedAIPrompts ?? [];
 
-    final firstSLength = suggestions.length <= 1
-        ? 1
+
+    final firstSLength = suggestions.isEmpty
+        ? 0
         : (suggestions.length / 2).floor();
     final secondSLength = (suggestions.length - firstSLength).abs();
     return Expanded(
@@ -181,7 +172,7 @@ class NoMsgWidget extends StatelessWidget {
                       shrinkWrap: true,
                       itemCount: firstSLength,
                       itemBuilder: (context, index) {
-                        final suggested = suggestions[index];
+                        final suggested = suggestions[index].toUpperCase();
                         return _SuggestionChip(
                           isLast: (index + 1) == firstSLength,
                           label: suggested,
@@ -206,7 +197,7 @@ class NoMsgWidget extends StatelessWidget {
                       itemCount: secondSLength,
                       itemBuilder: (context, index) {
                         final offset = (firstSLength) + index;
-                        final suggested = suggestions[offset];
+                        final suggested = suggestions[offset].toUpperCase();
                         return _SuggestionChip(
                           isFirst: firstSLength == offset,
                           isLast: (offset + 1) == suggestions.length,

@@ -98,16 +98,17 @@ class SwiftAgentsSdk {
 
     final client = SwiftAgentsClient(
       email: email,
-      dio: Dio(BaseOptions(
+      dio: Dio(
+        BaseOptions(
           baseUrl: Variables.apiBaseUrl,
-        connectTimeout: Duration(seconds: 30),
-        receiveTimeout: Duration(seconds: 180),
-        followRedirects: false,
-      ),
+          connectTimeout: Duration(seconds: 30),
+          receiveTimeout: Duration(seconds: 180),
+          followRedirects: false,
+        ),
       ),
     );
 
-    client.dio.interceptors.add(ApiLoggerInterceptor());
+    // client.dio.interceptors.add(ApiLoggerInterceptor());
 
     return _usrContexts.putIfAbsent(
       email,
@@ -129,4 +130,3 @@ class SwiftAgentsSDKException implements Exception {
   @override
   String toString() => 'SwiftAgentsSDKException: $message';
 }
-

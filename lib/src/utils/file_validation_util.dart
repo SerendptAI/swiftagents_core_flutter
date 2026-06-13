@@ -1,5 +1,5 @@
 class FileValidationHelper {
-  static const int maxFileSizeBytes = 10 * 1024 * 1024;
+  static const int maxFileSizeBytes = 5 * 1024 * 1024;
 
   static bool isWithinLimit(int fileSizeBytes) {
     return fileSizeBytes <= maxFileSizeBytes;

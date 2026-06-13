@@ -29,16 +29,20 @@ class InitSessionResponse {
 class Company {
   final String? name;
   final String? logoUrl;
+  final List<String>? suggestedAIPrompts;
 
   Company({
     required this.name,
     required this.logoUrl,
+    required this.suggestedAIPrompts,
   });
 
   factory Company.fromJson(Map<String, dynamic> json) {
     return Company(
       name: json['name'],
       logoUrl: json['logo_url'],
+      suggestedAIPrompts: (json['suggested_ai_prompts'] as List<dynamic>?)
+          ?.cast<String>(),
     );
   }
 
@@ -46,6 +50,7 @@ class Company {
     return {
       'name': name,
       'logo_url': logoUrl,
+      'suggested_ai_prompts': suggestedAIPrompts,
     };
   }
 }
