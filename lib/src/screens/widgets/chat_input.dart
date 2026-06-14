@@ -43,17 +43,13 @@ class _ChatInputState extends State<ChatInput> {
     if (remainingSlots <= 0) {
       return;
     }
-
-    final sdkProvider = Provider.of<SdkProvider>(context, listen: false);
-    final isAnyMaxSize = _selectedFiles.any((sFiles) => sFiles.isMaxSize);
-
+    // Check if file has been selected before
     files.removeWhere((file) => _selectedFiles.any((sfile) => sfile.name == file.name));
     _selectedFiles.addAll(files.take(remainingSlots));
-    
-
-    print('isAnyMaxSize: $isAnyMaxSize');
-
-    if (!isAnyMaxSize) widget.onAttach?.call(_selectedFiles);
+    // Check if files is above Max Size (exceeds 5mb)
+    final sFile = List.of(_selectedFiles);
+    sFile.removeWhere((sFiles) => sFiles.isMaxSize);
+    widget.onAttach?.call(sFile);
 
     setState(() {});
   }
@@ -97,16 +93,20 @@ class _ChatInputState extends State<ChatInput> {
     final isAnyMaxSize = _selectedFiles.any((sFiles) => sFiles.isMaxSize);
     final text = _controller.text.trim();
 
+
+
     if (text.isEmpty ||
         !sdkProvider.isInitialized ||
-        !sdkProvider.isUploadAttachmentsLoading ||
+        sdkProvider.isUploadAttachmentsLoading ||
         !sdkProvider.isNewFilesUploaded)
       return;
+
 
     if (isAnyMaxSize) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Max file size exceeded (5MB max).')),
       );
+
       return;
     }
 

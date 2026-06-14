@@ -108,7 +108,7 @@ class SwiftAgentsSdk {
       ),
     );
 
-    // client.dio.interceptors.add(ApiLoggerInterceptor());
+    client.dio.interceptors.add(ApiLoggerInterceptor());
 
     return _usrContexts.putIfAbsent(
       email,

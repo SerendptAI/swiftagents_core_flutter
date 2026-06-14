@@ -324,17 +324,19 @@ class SdkProvider with ChangeNotifier {
 
       final deLinkedFiles = List.of(files);
       deLinkedFiles.removeWhere((file) => uploadedNames.contains(file.name));
-      
+
+      // return early if no new files to upload, but still notify listeners to update UI.
       if (deLinkedFiles.isNotEmpty) {
         _isNewFilesUploaded = false;
-        notifyListeners();
       } else {
-        // return early if no new files to upload, but still notify listeners to update UI.
         _isNewFilesUploaded = true;
-        notifyListeners();
-        return _uploadAttachmentsResponse;
+        _isUploadAttachmentsLoading = false;
       }
 
+      notifyListeners();
+      if (_isNewFilesUploaded) return _uploadAttachmentsResponse;
+
+      // Upload
       final aResponse = await client.uploadAttachments(
         files: deLinkedFiles,
         onProgress: (double progress) {

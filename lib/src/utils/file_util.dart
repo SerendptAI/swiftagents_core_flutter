@@ -161,7 +161,7 @@ class FileUtils {
     if (!hasPermission) return null;
 
     try {
-      final result = await FilePicker.pickFiles(
+      final result = await FilePicker.platform.pickFiles(
         allowMultiple: allowMultiple,
         type: FileType.any,
         withData: true, // Important for Web
