@@ -7,7 +7,6 @@ import 'package:swift_agents/src/constants/variables.dart';
 import 'package:swift_agents/src/controllers/sdk_provider.dart';
 import 'package:swift_agents/src/models/msg_model.dart';
 import 'package:swift_agents/src/models/upload_attachments_response.dart';
-import 'package:swift_agents/src/utils/file_validation_util.dart';
 import '../../../swift_agents.dart';
 import 'get_cached_image.dart';
 
@@ -225,7 +224,7 @@ class _ChatBubbleState extends State<ChatBubble> {
   Widget build(BuildContext context) {
     final t = SwiftAgentsTheme.of(context);
     final msg = widget.message;
-    final attachments = widget.message.attachments ?? [];
+    final attachments = msg.attachments ?? [];
     final aLength = attachments.length;
 
     if (msg.role == BubbleRole.system) {

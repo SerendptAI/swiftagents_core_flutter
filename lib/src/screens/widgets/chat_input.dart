@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:provider/provider.dart';
 import 'package:swift_agents/src/controllers/sdk_provider.dart';
-import 'package:swift_agents/src/utils/file_validation_util.dart';
-
 import '../../../swift_agents.dart';
 import '../../constants/fonts.dart';
 import '../../constants/variables.dart';
@@ -44,9 +42,11 @@ class _ChatInputState extends State<ChatInput> {
       return;
     }
     // Check if file has been selected before
-    files.removeWhere((file) => _selectedFiles.any((sfile) => sfile.name == file.name));
+    files.removeWhere(
+      (file) => _selectedFiles.any((sfile) => sfile.name == file.name),
+    );
     _selectedFiles.addAll(files.take(remainingSlots));
-    // Check if files is above Max Size (exceeds 5mb)
+    // Check if files is above Max Size (exceeds 10mb)
     final sFile = List.of(_selectedFiles);
     sFile.removeWhere((sFiles) => sFiles.isMaxSize);
     widget.onAttach?.call(sFile);
@@ -81,30 +81,26 @@ class _ChatInputState extends State<ChatInput> {
     setState(() {});
   }
 
-  @override
-  void dispose() {
-    _controller.dispose();
-    _focusNode.dispose();
-    super.dispose();
+  bool lockMsgSend() {
+    final sdkProvider = Provider.of<SdkProvider>(context, listen: false);
+
+    final locked =
+        !sdkProvider.isInitialized ||
+        sdkProvider.isCurrentMsgSending ||
+        sdkProvider.isUploadAttachmentsLoading ||
+        (!sdkProvider.isNewFilesUploaded && _selectedFiles.isNotEmpty);
+    return locked;
   }
 
   void _send() {
-    final sdkProvider = Provider.of<SdkProvider>(context, listen: false);
     final isAnyMaxSize = _selectedFiles.any((sFiles) => sFiles.isMaxSize);
     final text = _controller.text.trim();
 
-
-
-    if (text.isEmpty ||
-        !sdkProvider.isInitialized ||
-        sdkProvider.isUploadAttachmentsLoading ||
-        !sdkProvider.isNewFilesUploaded)
-      return;
-
+    if (text.isEmpty || lockMsgSend()) return;
 
     if (isAnyMaxSize) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Max file size exceeded (5MB max).')),
+        SnackBar(content: Text('Max file size exceeded (10MB max).')),
       );
 
       return;
@@ -113,6 +109,22 @@ class _ChatInputState extends State<ChatInput> {
     widget.onSubmit?.call(text);
     _selectedFiles.clear();
     _controller.clear();
+  }
+
+  @override
+  void initState() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final sdkProvider = Provider.of<SdkProvider>(context, listen: false);
+      sdkProvider.clearPreviousUploadedFiles();
+    });
+    super.initState();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    _focusNode.dispose();
+    super.dispose();
   }
 
   @override
@@ -161,29 +173,38 @@ class _ChatInputState extends State<ChatInput> {
                               : Column(
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
-                                    Icon(Icons.insert_drive_file, color: t.foreground),
+                                    Icon(
+                                      Icons.insert_drive_file,
+                                      color: t.foreground,
+                                    ),
                                     Padding(
                                       padding: const EdgeInsets.symmetric(
                                         horizontal: 4,
                                       ),
                                       child: Text(
-                                        FileUtils.getFileNameFromSignature(file.name),
+                                        FileUtils.getFileNameFromSignature(
+                                          file.name,
+                                        ),
                                         maxLines: 2,
                                         overflow: TextOverflow.ellipsis,
                                         textAlign: TextAlign.center,
-                                        style: TextStyle(fontSize: 10, color: t.foreground),
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          color: t.foreground,
+                                        ),
                                       ),
                                     ),
                                   ],
                                 ),
                         ),
                       ),
-                      if (isMaxSize ||
-                          (isFileUploading && !isFileAlreadyUploaded))
-                        Container(color:isMaxSize?Colors.black54: Colors.black26, width: 90, height: 90),
-                      if (!isMaxSize &&
-                          isFileUploading &&
-                          !isFileAlreadyUploaded)
+                      if (isMaxSize || !isFileAlreadyUploaded)
+                        Container(
+                          color: isMaxSize ? Colors.black54 : Colors.black26,
+                          width: 90,
+                          height: 90,
+                        ),
+                      if (!isMaxSize && !isFileAlreadyUploaded)
                         ValueListenableBuilder<double>(
                           valueListenable: sdkProvider.uploadProgress,
                           builder: (context, progress, _) {
@@ -201,7 +222,7 @@ class _ChatInputState extends State<ChatInput> {
                             Icon(Icons.delete, color: Colors.grey[100]),
                             SizedBox(height: 3),
                             Text(
-                              'File size\nexceeded(5MB max).',
+                              'File size\nexceeded(10MB max).',
                               textAlign: TextAlign.center,
                               style: TextStyle(
                                 fontSize: 10.5,
@@ -289,12 +310,7 @@ class _ChatInputState extends State<ChatInput> {
                   GestureDetector(
                     onTap: () => _send(),
                     child: Opacity(
-                      opacity:
-                          (isMsgSending ||
-                              isFileUploading ||
-                              !isNewFilesUploaded)
-                          ? 0.5
-                          : 1,
+                      opacity: lockMsgSend() ? 0.5 : 1,
                       child: SvgPicture.asset(
                         'assets/svgs/send.svg',
                         package: Variables.sdkName,

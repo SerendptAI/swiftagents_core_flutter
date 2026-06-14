@@ -73,9 +73,9 @@ class FileUtils {
     final picker = ImagePicker();
 
     try {
-      final List<XFile> images = await picker.pickMultipleMedia(
-        imageQuality: 90,
-        maxWidth: 1920,
+      final List<XFile> images = await picker.pickMultiImage(
+        imageQuality: 95,
+        maxWidth: 2048,
         maxHeight: 1080,
         limit: 5,
       );
@@ -120,7 +120,7 @@ class FileUtils {
       final XFile? image = await picker.pickImage(
         source: ImageSource.camera,
         imageQuality: 95,
-        maxWidth: 1920,
+        maxWidth: 2048,
         maxHeight: 1080,
       );
 
@@ -163,7 +163,8 @@ class FileUtils {
     try {
       final result = await FilePicker.platform.pickFiles(
         allowMultiple: allowMultiple,
-        type: FileType.any,
+        type: FileType.custom,
+        allowedExtensions: ["pdf", "docx", "txt", "csv", "png", "jpg", "jpeg", "gif", "webp", "heic"],
         withData: true, // Important for Web
       );
 

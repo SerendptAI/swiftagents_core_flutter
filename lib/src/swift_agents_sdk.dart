@@ -1,5 +1,6 @@
 // lib/src/utils/rive_initializer.dart
 import 'package:dio/dio.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:rive/rive.dart';
 import 'package:swift_agents/src/controllers/permissions_provider.dart';
 import 'package:swift_agents/src/models/swift_agents_context.dart';
@@ -64,7 +65,7 @@ class SwiftAgentsSdk {
       _apiKey = apiKey;
       _companyId = companyId;
     } catch (e) {
-      print('SwiftAgents SDK: Failed to initialize - $e');
+      debugPrint('SwiftAgents SDK: Failed to initialize - $e');
     }
   }
 
@@ -108,7 +109,7 @@ class SwiftAgentsSdk {
       ),
     );
 
-    client.dio.interceptors.add(ApiLoggerInterceptor());
+    // client.dio.interceptors.add(ApiLoggerInterceptor());
 
     return _usrContexts.putIfAbsent(
       email,

@@ -116,6 +116,12 @@ class SdkProvider with ChangeNotifier {
     }
   }
 
+  /// 3. Clears previously uploaded files metadata
+  void clearPreviousUploadedFiles(){
+    _previousUploadedFiles.clear();
+    notifyListeners();
+  }
+
   // API ViewModels Methods
   /// 1. Create session for user
   Future<InitSessionResponse?> initiateSession() async {
@@ -146,7 +152,7 @@ class SdkProvider with ChangeNotifier {
   }) async {
     if (_isSendingMessages[sessionId] == true ||
         !_isInitialized ||
-        !_isUploadAttachmentsLoading)
+        _isUploadAttachmentsLoading)
       return null;
     _isSendingMessages[sessionId] = true;
     _streamedMessage = '';
@@ -155,7 +161,9 @@ class SdkProvider with ChangeNotifier {
 
     final sessionMsgs = _chatSessions.putIfAbsent(sessionId, () => []);
 
-    sessionMsgs.add(MsgModel(message, BubbleRole.user, _previousUploadedFiles));
+    // Add user message to chat first, even upload.
+    final delinkedPrevUploadedFiles = List.of(_previousUploadedFiles);
+    sessionMsgs.add(MsgModel(message, BubbleRole.user, delinkedPrevUploadedFiles));
     notifyListeners();
 
     // 1. Declare these outside so they are accessible in the finally block
@@ -332,8 +340,8 @@ class SdkProvider with ChangeNotifier {
         _isNewFilesUploaded = true;
         _isUploadAttachmentsLoading = false;
       }
-
       notifyListeners();
+
       if (_isNewFilesUploaded) return _uploadAttachmentsResponse;
 
       // Upload

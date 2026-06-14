@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:marqueer/marqueer.dart';
 import 'package:provider/provider.dart';
@@ -9,6 +7,7 @@ import 'package:swift_agents/src/screens/widgets/top_bar.dart';
 import '../../swift_agents.dart';
 import '../constants/fonts.dart';
 import '../constants/variables.dart';
+import '../controllers/online_provider.dart';
 import '../controllers/sdk_provider.dart';
 import '../theme/theme.dart';
 import '../utils/file_util.dart';
@@ -25,6 +24,8 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  List<UploadFile> sFiles = [];
+
   void _onSubmit(String text) {
     final sdkProvider = context.read<SdkProvider>();
 
@@ -37,18 +38,32 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _onUpload(List<UploadFile> files) async {
+    sFiles = files; // List of already used Chat input
     final sdkProvider = Provider.of<SdkProvider>(context, listen: false);
-    await sdkProvider.uploadAttachments(files: files);
+    final onlineProvider = Provider.of<OnlineProvider>(context, listen: false);
+
+    await sdkProvider.uploadAttachments(files: sFiles);
+
+    onlineProvider.onlineStream.listen((bool isOnline) async {
+      if (isOnline && sFiles.isNotEmpty) {
+        await sdkProvider.uploadAttachments(files: sFiles);
+      }
+    });
+
   }
 
   void _onRemove(UploadFile removedFile) {
     final sdkProvider = Provider.of<SdkProvider>(context, listen: false);
+    // Remove file, so it doesn't upload a cancelled file, when usr is back online.
+    sFiles.removeWhere((sFile) => sFile.name == removedFile.name);
+    // Remove previous uploaded file, so sdk doesn't send msg with cancelled files
     sdkProvider.removeUploadedAttachment(file: removedFile);
   }
 
+
   @override
   Widget build(BuildContext context) {
-    final sdkProvider = context.watch<SdkProvider>();
+    final sdkProvider = Provider.of<SdkProvider>(context);
     final activeMessages = sdkProvider.messages;
     var selectedIndex = sdkProvider.selectedConversationIndex;
 
