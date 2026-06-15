@@ -13,7 +13,8 @@ class FileUtils {
     const prefix = 'sw_';
 
     if (!signature.startsWith(prefix)) {
-      throw ArgumentError('Invalid signature');
+      return signature;
+      // throw ArgumentError('Invalid signature');
     }
 
     // Remove "sw_"
@@ -23,7 +24,8 @@ class FileUtils {
     final firstUnderscore = withoutPrefix.indexOf('_');
 
     if (firstUnderscore == -1) {
-      throw ArgumentError('Invalid signature');
+      // throw ArgumentError('Invalid signature');
+      return signature;
     }
 
     return withoutPrefix.substring(firstUnderscore + 1);

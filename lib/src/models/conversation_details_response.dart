@@ -6,7 +6,7 @@ class ConversationDetailsResponse {
   final String? subject;
   final bool resolved;
   final List<ConversationMessage> messages;
-  final String? attributedChat;
+  final List<ConversationMessage> attributedChat;
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
@@ -16,7 +16,7 @@ class ConversationDetailsResponse {
     this.subject,
     this.resolved = false,
     this.messages = const [],
-    this.attributedChat,
+    this.attributedChat = const [],
     this.createdAt,
     this.updatedAt,
   });
@@ -32,7 +32,9 @@ class ConversationDetailsResponse {
       messages: (json['messages'] as List<dynamic>?)
           ?.map((e) => ConversationMessage.fromJson(e))
           .toList() ?? [],
-      attributedChat: json['attributed_chat'],
+      attributedChat: (json['attributed_chat'] as List<dynamic>?)
+          ?.map((e) => ConversationMessage.fromJson(e))
+          .toList() ?? [],
       createdAt: json['created_at'] != null
           ? DateTime.tryParse(json['created_at'])
           : null,
@@ -49,7 +51,7 @@ class ConversationDetailsResponse {
       'subject': subject,
       'resolved': resolved,
       'messages': messages.map((e) => e.toJson()).toList(),
-      'attributed_chat': attributedChat,
+      'attributed_chat': attributedChat.map((e) => e.toJson()).toList(),
       'created_at': createdAt?.toIso8601String(),
       'updated_at': updatedAt?.toIso8601String(),
     };
