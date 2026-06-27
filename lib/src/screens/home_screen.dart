@@ -28,12 +28,14 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _onSubmit(String text) {
     final sdkProvider = context.read<SdkProvider>();
+    final isOnline = Provider.of<OnlineProvider>(context, listen: false).isOnline;
 
     final sessionId = sdkProvider.currentSessionId;
 
     sdkProvider.sendMessage(
       sessionId: sessionId,
       message: text,
+      isOnline: isOnline,
     );
   }
 
@@ -139,8 +141,10 @@ class NoMsgWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     final sdkProvider =  Provider.of<SdkProvider>(context);
     final t = SwiftAgentsTheme.of(context);
-
-    final suggestions = sdkProvider.initSessionResponse?.company?.suggestedAIPrompts ?? [];
+    
+    final company = sdkProvider.initSessionResponse?.company;
+    final suggestions = company?.suggestedAIPrompts ?? [];
+    final enableSuggestions = company?.enableSuggestedPrompts ?? false;
 
 
     final firstSLength = suggestions.isEmpty
@@ -176,7 +180,7 @@ class NoMsgWidget extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 30),
-              if (firstSLength > 0)
+              if (firstSLength > 0 && enableSuggestions)
                 SizedBox(
                   height: 46,
                   child: Marqueer(
@@ -200,7 +204,7 @@ class NoMsgWidget extends StatelessWidget {
                   ),
                 ),
               const SizedBox(height: 13),
-              if (secondSLength > 0)
+              if (secondSLength > 0 && enableSuggestions)
                 SizedBox(
                   height: 46,
                   child: Marqueer(

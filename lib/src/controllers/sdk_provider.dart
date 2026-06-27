@@ -1,7 +1,12 @@
 import 'dart:collection';
+import 'package:dio/dio.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:swift_agents/src/constants/variables.dart';
 import 'package:swift_agents/src/models/conversations_response.dart';
 import 'package:swift_agents/src/models/upload_attachments_response.dart';
+import 'package:swift_agents/src/services/conversation_messages_socket.dart';
+import 'package:swift_agents/src/services/conversations_socket.dart';
+import 'package:swift_agents/src/services/interceptors/api_logger_interceptor.dart';
 import 'package:swift_agents/src/services/swift_agents_client.dart';
 import 'package:swift_agents/src/utils/file_util.dart';
 import '../models/conversation_details_response.dart';
@@ -13,8 +18,14 @@ import 'package:uuid/uuid.dart';
 
 class SdkProvider with ChangeNotifier {
   SwiftAgentsClient client;
+  ConversationsSocket conversationsSocket;
+  ConversationMessagesSocket conversationMsgSocket;
 
-  SdkProvider(this.client);
+  SdkProvider(
+    this.client,
+    this.conversationsSocket,
+    this.conversationMsgSocket,
+  );
 
   // a. Init
   bool _isInitiateSessionLoading = false;
@@ -31,6 +42,11 @@ class SdkProvider with ChangeNotifier {
   bool get isCurrentMsgSending =>
       _isSendingMessages[_currentSessionId] ?? false;
 
+  final Map<String, bool> _showMsgLoading = {};
+
+  /// State for ChatBubble loading widget
+  bool get showCurrentMsgLoading => _showMsgLoading[_currentSessionId] ?? false;
+
   String _streamedMessage = '';
   String get streamedMessage => _streamedMessage;
 
@@ -41,7 +57,7 @@ class SdkProvider with ChangeNotifier {
   bool _isUploadAttachmentsLoading = false;
   bool get isUploadAttachmentsLoading => _isUploadAttachmentsLoading;
 
-  bool _isNewFilesUploaded  = false;
+  bool _isNewFilesUploaded = false;
   bool get isNewFilesUploaded => _isNewFilesUploaded;
 
   final ValueNotifier<double> uploadProgress = ValueNotifier(0.0);
@@ -57,8 +73,8 @@ class SdkProvider with ChangeNotifier {
   // d. Chat sessions
   int? _selectedConversationIndex;
   int? get selectedConversationIndex => _selectedConversationIndex;
-  set selectedConversationIndex(int? index) =>
-      _selectedConversationIndex = index;
+  // set selectedConversationIndex(int? index) =>
+  //     _selectedConversationIndex = index;
 
   String? _currentSessionId;
 
@@ -72,8 +88,11 @@ class SdkProvider with ChangeNotifier {
       UnmodifiableListView(_chatSessions[_currentSessionId] ?? []);
 
   // e. Conversations
-  bool _isGetConversionsLoading = false;
-  bool get isGetConversionsLoading => _isGetConversionsLoading;
+  bool _isGetConversationsLoading = false;
+  bool get isGetConversationsLoading => _isGetConversationsLoading;
+
+  bool _isInitConversationsSockLoading = false;
+  bool get isInitConversationsSockLoading => _isInitConversationsSockLoading;
 
   // Backend is the only source of truth.
   ConversationsResponse? _conversationsResponse;
@@ -97,43 +116,85 @@ class SdkProvider with ChangeNotifier {
   bool get isCurrentConversationMsgesLoading =>
       _getConversionMsgesLoading[_currentSessionId] ?? false;
 
-  // UI methods
+  final Map<String, bool> _getConversionMsgesSockLoading = {};
+  bool get isCurrentConversationMsgesSockLoading =>
+      _getConversionMsgesSockLoading[_currentSessionId] ?? false;
+
+  // Other methods
+  void _requireSession() {
+    if (initSessionResponse?.sessionToken == null) {
+      throw StateError("""
+        Swift API called before initialization.
+        1. Call SwiftAgentsCore.init( companyId: '****', apiKey: 'swa_****') in main.
+        2. Pass SwiftAgentsCore.getContext(email: 'user***@mail.com') into view
+        3. Check your internet connection.
+        """);
+    }
+  }
+
+  // UI Methods
   /// 1. Create a new chat
   void createNewChat() {
     final id = const Uuid().v4();
     _currentSessionId = id;
     _chatSessions[id] = [];
+    _selectedConversationIndex = null;
     notifyListeners();
   }
 
   /// 2. Sets & open a chat session
   void openChat(String sessionId, int index) {
     _currentSessionId = sessionId;
+    _selectedConversationIndex = index;
     notifyListeners();
 
     if (_currentSessionId != null) {
+      initConversationMessagesSock(conversationId: _currentSessionId!);
       getConversationMessages(sessionId: _currentSessionId!);
     }
   }
 
   /// 3. Clears previously uploaded files metadata
-  void clearPreviousUploadedFiles(){
+  void clearPreviousUploadedFiles() {
     _previousUploadedFiles.clear();
     notifyListeners();
   }
 
   // API ViewModels Methods
   /// 1. Create session for user
-  Future<InitSessionResponse?> initiateSession() async {
-    if (_isInitiateSessionLoading || _isInitialized) return null;
+  Future<InitSessionResponse?> initiateSession({bool refresh = false}) async {
+    if (_isInitiateSessionLoading || (_isInitialized && !refresh)) return null;
 
     _isInitiateSessionLoading = true;
     notifyListeners();
 
-    InitSessionResponse? session = await client.initialize();
+    // Create a new client instance on refresh, to avoid using the frozen client (frozen by auth's QueuedInterceptor).
+    final newClient = refresh
+        ? SwiftAgentsClient(
+            dio: Dio(
+              BaseOptions(
+                baseUrl: Variables.apiBaseUrl,
+                connectTimeout: Duration(seconds: 30),
+                receiveTimeout: Duration(seconds: 180),
+                followRedirects: false,
+              ),
+            ),
+            email: client.email,
+          )
+        : client;
+
+    if (refresh) {
+      newClient.dio.interceptors.add(ApiLoggerInterceptor());
+    }
+
+    InitSessionResponse? session = await newClient.initialize();
 
     if (session != null) {
       _initSessionResponse = session;
+      // _initSessionResponse = session.copyWith( // Used for testing auth token refresh.
+      //   sessionToken: refresh ? session.sessionToken : expiredToken,
+      // );
+
       _isInitialized = true;
       debugPrint('USER(${client.email}) SESSION INITIATED');
     }
@@ -149,21 +210,25 @@ class SdkProvider with ChangeNotifier {
   Future<List<MsgModel>?> sendMessage({
     required String sessionId,
     required String message,
+    required bool isOnline,
   }) async {
     if (_isSendingMessages[sessionId] == true ||
         !_isInitialized ||
         _isUploadAttachmentsLoading)
       return null;
     _isSendingMessages[sessionId] = true;
+    _showMsgLoading[sessionId] = true && isOnline;
     _streamedMessage = '';
     _messageError = null;
     bool hasAddedMessage = false;
 
     final sessionMsgs = _chatSessions.putIfAbsent(sessionId, () => []);
 
-    // Add user message to chat first, even upload.
+    // Add user message to chat first, even before upload.
     final delinkedPrevUploadedFiles = List.of(_previousUploadedFiles);
-    sessionMsgs.add(MsgModel(message, BubbleRole.user, delinkedPrevUploadedFiles));
+    sessionMsgs.add(
+      MsgModel(message, BubbleRole.user, delinkedPrevUploadedFiles),
+    );
     notifyListeners();
 
     // 1. Declare these outside so they are accessible in the finally block
@@ -172,6 +237,7 @@ class SdkProvider with ChangeNotifier {
 
     if (!_isInitialized) return null;
     try {
+      _requireSession();
       await for (final chunk in client.sendMessage(
         sessionId: sessionId,
         message: message,
@@ -181,6 +247,7 @@ class SdkProvider with ChangeNotifier {
           // if (chunk.role != currentActiveRole) { // Allows persistent display of system message
           currentActiveRole = chunk.role;
           _streamedMessage = '';
+          _showMsgLoading[sessionId] = false;
           sessionMsgs.add(
             MsgModel('', currentActiveRole, null),
           ); // AI doesn't send attachments yet
@@ -223,6 +290,7 @@ class SdkProvider with ChangeNotifier {
       logError('Error: ${e.toString()}', trace);
     } finally {
       _isSendingMessages[sessionId] = false;
+      _showMsgLoading[sessionId] = false;
       notifyListeners();
     }
     return null;
@@ -235,7 +303,10 @@ class SdkProvider with ChangeNotifier {
     /// This checks if Conversations has been fetched atleast once
     bool checkConversationsLoaded = false,
   }) async {
-    if (_isGetConversionsLoading || !_isInitialized || _isUploadAttachmentsLoading) return null;
+    // Is initiateSession loaded && Conversations not been fetched already.
+    if (_isGetConversationsLoading || !_isInitialized) return null;
+    // Use checkConversationsLoaded as a switch to check, if Conversations has loaded atleast once,
+    // which is denoted by _hasLoadedConversations = true.
     if (checkConversationsLoaded && _hasLoadedConversations) return null;
 
     if (refresh) {
@@ -249,10 +320,11 @@ class SdkProvider with ChangeNotifier {
       return null;
     }
 
-    _isGetConversionsLoading = true;
+    _isGetConversationsLoading = true;
     notifyListeners();
 
     try {
+      _requireSession();
       final response = await client.listConversations(
         cursor: _nextCursor,
         limit: 20,
@@ -277,7 +349,7 @@ class SdkProvider with ChangeNotifier {
 
       return response;
     } finally {
-      _isGetConversionsLoading = false;
+      _isGetConversationsLoading = false;
       notifyListeners();
     }
   }
@@ -292,6 +364,7 @@ class SdkProvider with ChangeNotifier {
     notifyListeners();
 
     try {
+      _requireSession();
       final details = await client.getConversationDetails(
         conversationId: sessionId,
       );
@@ -316,6 +389,7 @@ class SdkProvider with ChangeNotifier {
   Future<UploadAttachmentsResponse?> uploadAttachments({
     required List<UploadFile> files,
   }) async {
+    _requireSession();
     if (_isUploadAttachmentsLoading) return null;
 
     uploadProgress.value = 0.0;
@@ -326,6 +400,7 @@ class SdkProvider with ChangeNotifier {
 
     try {
       // Check if file has been uploaded before, if true don't re-upload.
+      _requireSession();
       final uploadedNames = _previousUploadedFiles
           .map((e) => e.filename)
           .toSet();
@@ -369,6 +444,135 @@ class SdkProvider with ChangeNotifier {
   void removeUploadedAttachment({required UploadFile file}) {
     _previousUploadedFiles.removeWhere(
       (pUFile) => pUFile.filename == file.name,
+    );
+  }
+
+  // WEB SOCKETS
+  /// 6. Initate Socket Connection
+  void initConversationMessagesSock({required String conversationId}) {
+    if (_initSessionResponse == null) {
+      debugPrint(
+        'Socket connection cannot be initiated. Session token or session ID is null.',
+      );
+      return;
+    }
+
+    if (_getConversionMsgesSockLoading[conversationId] == true) return;
+
+    _getConversionMsgesSockLoading[conversationId] = true;
+    notifyListeners();
+
+    conversationMsgSocket.connect(
+      _initSessionResponse?.sessionToken ?? '',
+      conversationId,
+      onInit: (ConversationDetailsResponse? details) {
+        _getConversionMsgesSockLoading[conversationId] = false;
+        notifyListeners();
+        // debugPrint('USER(${client.email}) MSG SOCKET CONNECTED');
+        
+        if (details != null) {
+          final formattedMsgs = details.messages.map((msg) {
+            final role = msg.role == 'user'
+                ? BubbleRole.user
+                : BubbleRole.agent;
+            return MsgModel(msg.content ?? '', role, msg.attachments);
+          }).toList();
+
+          _chatSessions[details.id] = formattedMsgs;
+          notifyListeners();
+        }
+      },
+      onUpdate: (msg) {
+        _getConversionMsgesSockLoading[conversationId] = false;
+        notifyListeners();
+
+        if (msg != null) {
+          final role = msg.role == 'user' ? BubbleRole.user : BubbleRole.agent;
+          _chatSessions[conversationId]?.add(
+            MsgModel(msg.content ?? '', role, msg.attachments),
+          );
+          notifyListeners();
+        }
+      },
+      onDisconnect: () {
+        _getConversionMsgesSockLoading[conversationId] = false;
+        notifyListeners();
+        // debugPrint('USER(${client.email}) MSG SOCKET DISCONNECTED');
+      },
+      onError: (error) {
+        _getConversionMsgesSockLoading[conversationId] = false;
+        if (error == "Invalid or missing SDK token") {
+          initiateSession(refresh: true).then((session) {
+            if (session != null) {
+              initConversationMessagesSock(conversationId: conversationId);
+            }
+          });
+        } else {
+          debugPrint('USER(${client.email}) MESSAGE SOCKET ERROR: $error');
+        }
+      },
+    );
+  }
+
+  void initConversationsSock({required String conversationId}) {
+    if (_initSessionResponse == null) {
+      debugPrint(
+        'Socket connection cannot be initiated. Session token or session ID is null.',
+      );
+      return;
+    }
+
+    if (_isInitConversationsSockLoading == true) return;
+
+    _isInitConversationsSockLoading = true;
+    notifyListeners();
+
+    conversationsSocket.connect(
+      _initSessionResponse?.sessionToken ?? '',
+      conversationId,
+      onInit: (ConversationsResponse? conversationsResponse) {
+        _isInitConversationsSockLoading = false;
+        notifyListeners();
+        // debugPrint('USER(${client.email}) CONVERSATIONS SOCKET CONNECTED');
+        // if (conversationsResponse != null){
+        // Do something...
+        //   notifyListeners();
+        // }
+      },
+      onUpdate: (ConversationSession? convoUpdate) {
+        _isInitConversationsSockLoading = false;
+         notifyListeners();
+
+        if (convoUpdate != null) {
+          final updatedConvoIndex = _conversationsList.indexWhere(
+            (conversation) => conversation.id == convoUpdate.id,
+          );
+          if (updatedConvoIndex != -1) {
+            _conversationsList[updatedConvoIndex] = convoUpdate;
+          } else {
+            _conversationsList.insert(0, convoUpdate);
+          }
+          notifyListeners();
+        }
+      },
+      onDisconnect: () {
+        _isInitConversationsSockLoading = false;
+         notifyListeners();
+        debugPrint('USER(${client.email}) CONVERSATIONS SOCKET DISCONNECTED');
+      },
+      onError: (error) {
+        _isInitConversationsSockLoading = false;
+        notifyListeners();
+        if (error == "Invalid or missing SDK token") {
+          initiateSession(refresh: true).then((session) {
+            if (session != null) {
+              initConversationMessagesSock(conversationId: conversationId);
+            }
+          });
+        } else {
+          debugPrint('USER(${client.email}) MESSAGE SOCKET ERROR: $error');
+        }
+      },
     );
   }
 }

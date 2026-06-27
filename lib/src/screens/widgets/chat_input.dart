@@ -131,16 +131,13 @@ class _ChatInputState extends State<ChatInput> {
   Widget build(BuildContext context) {
     final t = SwiftAgentsTheme.of(context);
     final sdkProvider = Provider.of<SdkProvider>(context);
-    final isMsgSending = sdkProvider.isCurrentMsgSending;
-    final isFileUploading = sdkProvider.isUploadAttachmentsLoading;
-    final isNewFilesUploaded = sdkProvider.isNewFilesUploaded;
 
     return Column(
       children: [
         if (_selectedFiles.isNotEmpty)
           Container(
             height: 80,
-            margin: EdgeInsets.only(right: 15, left: 15, bottom: 5),
+            margin: EdgeInsets.only(right: 15, left: 15, bottom: 3, top: 8),
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
               itemCount: _selectedFiles.length,
@@ -234,24 +231,25 @@ class _ChatInputState extends State<ChatInput> {
                             ),
                           ],
                         ),
-                      Positioned(
-                        right: 3,
-                        top: 3,
-                        child: GestureDetector(
-                          onTap: () => _removeFile(index),
-                          child: Container(
-                            decoration: const BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: Colors.black54,
-                            ),
-                            child: const Icon(
-                              Icons.close,
-                              size: 16,
-                              color: Colors.white,
+                      if (isFileAlreadyUploaded || isMaxSize)
+                        Positioned(
+                          right: 3,
+                          top: 3,
+                          child: GestureDetector(
+                            onTap: () => _removeFile(index),
+                            child: Container(
+                              decoration: const BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: Colors.black54,
+                              ),
+                              child: const Icon(
+                                Icons.close,
+                                size: 16,
+                                color: Colors.white,
+                              ),
                             ),
                           ),
                         ),
-                      ),
                     ],
                   ),
                 );
@@ -271,8 +269,10 @@ class _ChatInputState extends State<ChatInput> {
             mainAxisSize: MainAxisSize.min,
             children: [
               TextField(
-                controller: _controller,
+                minLines: 1,
+                maxLines: 4,
                 focusNode: _focusNode,
+                controller: _controller,
                 onSubmitted: (_) => _send(),
                 style: TextStyle(
                   fontSize: 14,

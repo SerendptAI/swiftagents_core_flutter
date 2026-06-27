@@ -9,7 +9,7 @@ import 'package:swift_agents/src/models/init_session_response.dart';
 import 'package:swift_agents/src/models/msg_model.dart';
 import 'package:swift_agents/src/models/upload_attachments_response.dart';
 import 'package:swift_agents/src/screens/widgets/chat_bubble.dart';
-import 'package:swift_agents/src/swift_agents_sdk.dart';
+import 'package:swift_agents/src/swift_agents_core.dart';
 import 'package:swift_agents/src/utils/file_util.dart';
 import 'package:swift_agents/src/utils/logger.dart';
 import '../models/conversations_response.dart';
@@ -20,26 +20,9 @@ class SwiftAgentsClient {
 
   SwiftAgentsClient({required this.dio, required this.email});
 
-  String? _sessionToken;
-
   String _sdkPath(String path) {
-    final companyId = SwiftAgentsSdk.companyId;
-    return '${Variables.apiBaseUrl}/api/v1/sdk/$companyId$path';
-  }
-
-  Map<String, String> get _authHeaders => {
-    'Authorization': 'Bearer $_sessionToken',
-  };
-
-  void _requireSession() {
-    if (_sessionToken == null) {
-      throw StateError("""
-        Swift API called before initialization.
-        1. Call SwiftAgentsSdk.initialize( companyId: '****', apiKey: 'swa_****') in main.
-        2. Pass SwiftAgentsSdk.getContext(email: 'user***@mail.com') into view
-        3. Check your internet connection.
-        """);
-    }
+    final companyId = SwiftAgentsCore.companyId;
+    return '${Variables.apiBaseUrl}/sdk/$companyId$path';
   }
 
   Future<InitSessionResponse?> initialize() async {
@@ -49,7 +32,7 @@ class SwiftAgentsClient {
       var response = await dio.post(
         _sdkPath('/init'),
         data: data,
-        options: Options(headers: {'X-API-Key': SwiftAgentsSdk.apiKey}),
+        options: Options(headers: {'X-API-Key': SwiftAgentsCore.apiKey}),
       );
 
       var jsonData = response.data;
@@ -59,7 +42,6 @@ class SwiftAgentsClient {
           jsonData,
         );
 
-        _sessionToken = sessionResponse.sessionToken;
         return sessionResponse;
       }
 
@@ -75,12 +57,9 @@ class SwiftAgentsClient {
     String? cursor,
     bool forceRefresh = false,
   }) async {
-    _requireSession();
-
     try {
       var response = await dio.get(
         _sdkPath('/conversations'),
-        options: Options(headers: _authHeaders),
         queryParameters: {'cursor': cursor, 'limit': limit},
       );
 
@@ -97,13 +76,8 @@ class SwiftAgentsClient {
   Future<ConversationDetailsResponse?> getConversationDetails({
     required String conversationId,
   }) async {
-    _requireSession();
-
     try {
-      var response = await dio.get(
-        _sdkPath('/conversations/$conversationId'),
-        options: Options(headers: _authHeaders),
-      );
+      var response = await dio.get(_sdkPath('/conversations/$conversationId'));
 
       if (response.data == null) return null;
 
@@ -120,8 +94,6 @@ class SwiftAgentsClient {
     required String message,
     List<AttachmentModel>? attachments,
   }) async* {
-    _requireSession();
-
     try {
       final response = await dio.post<ResponseBody>(
         _sdkPath('/chat'),
@@ -131,10 +103,7 @@ class SwiftAgentsClient {
           if (attachments?.isNotEmpty ?? false)
             'attachments': attachments?.map((a) => a.toJson()).toList(),
         },
-        options: Options(
-          headers: _authHeaders,
-          responseType: ResponseType.stream,
-        ),
+        options: Options(responseType: ResponseType.stream),
       );
 
       final stream = response.data?.stream;
@@ -224,7 +193,8 @@ class SwiftAgentsClient {
 
               yield MsgModel(
                 msg.toString(),
-                isSystem ? BubbleRole.system : BubbleRole.agent, null
+                isSystem ? BubbleRole.system : BubbleRole.agent,
+                null,
               );
             }
           }
@@ -242,8 +212,6 @@ class SwiftAgentsClient {
     required List<UploadFile> files,
     required void Function(double progress)? onProgress,
   }) async {
-    _requireSession();
-
     try {
       final multipartFiles = files
           .where((file) => file.bytes != null)
@@ -254,10 +222,7 @@ class SwiftAgentsClient {
 
       FormData formData = FormData.fromMap({'files': multipartFiles});
 
-      final formattedHeaders = {
-        ..._authHeaders,
-        'Content-Type': 'multipart/form-data',
-      };
+      final formattedHeaders = {'Content-Type': 'multipart/form-data'};
 
       final response = await dio.post(
         _sdkPath('/chat/upload'),
@@ -298,11 +263,27 @@ class SwiftAgentsClient {
       } else if (responseData != null) {
         message = responseData.toString();
       } else {
-        message = error.message ?? 'Dio error occurred';
+        message = error.message ?? 'Client error occurred';
       }
     }
 
     logError(SwiftAgentsApiException(statusCode, message), trace);
+  }
+
+  Future<ConversationDetailsResponse?> reopenTicket({
+    required String conversationId,
+  }) async {
+    try {
+      var response = await dio.get(_sdkPath('tickets/$conversationId/reopen'));
+
+      if (response.data == null) return null;
+
+      return ConversationDetailsResponse.fromJson(response.data);
+    } catch (e, trace) {
+      // ERROR HANDLING
+      logError("Fetch Messages Failed: $e", trace);
+      return null;
+    }
   }
 }
 

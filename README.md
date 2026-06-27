@@ -1,39 +1,178 @@
-<!--
-This README describes the package. If you publish this package to pub.dev,
-this README's contents appear on the landing page for your package.
+![Company Logo](assets/images/logo.png)
 
-For information about how to write a good package README, see the guide for
-[writing package pages](https://dart.dev/tools/pub/writing-package-pages).
+# SwiftAgents Core SDK
 
-For general information about developing packages, see the Dart guide for
-[creating packages](https://dart.dev/guides/libraries/create-packages)
-and the Flutter guide for
-[developing packages and plugins](https://flutter.dev/to/develop-packages).
+<!-- Ensure the asset path is declared in your pubspec.yaml, for example:
+flutter:
+  assets:
+    - assets/images/logo.png
 -->
 
-TODO: Put a short description of the package here that helps potential users
-know whether this package might be useful for them.
+SwiftAgents core flutter package for embedding AI support agents into Android, iOS and Web applications.
 
-## Features
+---
 
-TODO: List what your package can do. Maybe include images, gifs, or videos.
+<video autoplay muted loop width="100%" preload="metadata">
+  <source src="assets/videos/agent_001.mp4" type="video/mp4" />
+  Your browser does not support the video tag.
+</video>
 
-## Getting started
+## Required Platform Permissions
 
-TODO: List prerequisites and provide or point to information on how to
-start using the package.
+This SDK also uses the `image_picker` and `file_picker` packages; your app would need the following permissions for the SDK to work properly:
 
-## Usage
+### Android
 
-TODO: Include short and useful examples for package users. Add longer examples
-to `/example` folder.
+In your app module's `AndroidManifest.xml` add the following permissions under the top-level `<manifest>` tag.
 
-```dart
-const like = 'sample';
+Manifest example:
+
+```xml
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-permission android:name="android.permission.INTERNET"/>
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
+    <uses-permission android:name="android.permission.CAMERA"/>
+    <!-- Android 13+ -->
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+    <!-- Android 12 and below -->
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
 ```
 
-## Additional information
+If your app targets Android 13+, the SDK uses `Permission.photos` and may also require storage permissions for backward compatibility.
 
-TODO: Tell users more about the package: where to find more information, how to
-contribute to the package, how to file issues, what response they can expect
-from the package authors, and more.
+### iOS
+
+In `ios/Runner/Info.plist`, add these usage descriptions:
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!-- Add the following permissions -->
+    <key>NSCameraUsageDescription</key>
+    <string>SwiftAgents needs camera access to let users capture photos for chat attachments.</string>
+
+    <key>NSPhotoLibraryUsageDescription</key>
+    <string>SwiftAgents needs photo library access to let users select images from their gallery</string>
+    
+    <key>NSPhotoLibraryAddUsageDescription</key>
+    <string>SwiftAgents needs permission to save or attach media from the photo library.</string>
+</dict>
+</plist>
+```
+
+<!-- ### pubspec.yaml
+
+The SDK requires the following dependencies in your host app's `pubspec.yaml`:
+
+```yaml
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_svg: ^2.3.0
+  marqueer: ^2.5.0
+  rive: ^0.14.7
+  dio: ^5.9.2
+  provider: ^6.1.5+1
+  logger: ^2.7.0
+  cached_network_image: ^3.4.1
+  internet_connection_checker: ^3.0.1
+  enhanced_paginated_view: ^2.0.3
+  permission_handler: ^12.0.3
+  device_info_plus: ^12.4.0
+  image_picker: ^1.2.2
+  file_picker: 10.3.10
+  shimmer: ^3.0.0
+  crypto: ^3.0.7
+## Quick Start
+
+Initialize the SDK in your `main.dart`:
+
+--- -->
+
+## Quick Start
+
+init the SDK in your `main.dart`:
+
+```dart
+import 'package:flutter/material.dart';
+import 'package:swift_agents/swift_agents.dart';
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await SwiftAgentsCore.init(
+      companyId: 'your_company_id',
+      apiKey: 'your_api_key',
+  );
+  runApp(const MyApp());
+}
+```
+
+Create/Reuse context for a user or multiple users:
+
+```dart
+final sdkContext = SwiftAgentsCore.getContext(email: 'user@example.com');
+final sdkContext2 = SwiftAgentsCore.getContext(email: 'user2@example.com');
+```
+
+Pass context into SwiftAgentsView, then show view
+
+- As BottomSheet
+
+```dart
+FloatingActionButton(
+  onPressed: () {
+    SwiftAgentsView(
+      sdkContext: sdkContext,
+    ).show(context);
+  },
+  child: const Icon(Icons.chat),
+),
+```
+
+- Or as a Widget
+
+```dart
+SwiftAgentsView(
+    theme: SwiftAgentsThemeData.dark(),
+    sdkContext: sdkContext,
+),
+```
+
+---
+
+## Theming
+
+Optional theming is supported. Customize the UI with `SwiftAgentsThemeData`:
+
+```dart
+SwiftAgentsView(
+    theme: SwiftAgentsThemeData.dark(),
+    sdkContext: sdkContext,
+),
+```
+
+Or use the light theme:
+
+```dart
+SwiftAgentsView(
+    theme: SwiftAgentsThemeData.light(),
+    sdkContext: sdkContext,
+),
+```
+
+---
+
+## Troubleshooting
+
+- If `SwiftAgentsView` fails to load, confirm `SwiftAgentsCore.init(...)` completed properly.
+- If camera/gallery access is blocked, verify your Android manifest and iOS `Info.plist` entries.
+- If uploads fail, confirm storage permissions are granted for the device OS version.
+
+---
+
+## License
+
+This repository is licensed under the terms of the included `LICENSE` file.

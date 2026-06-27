@@ -24,17 +24,31 @@ class InitSessionResponse {
       'user': user?.toJson(),
     };
   }
+
+  InitSessionResponse copyWith({
+    String? sessionToken,
+    Company? company,
+    User? user,
+  }) {
+    return InitSessionResponse(
+      sessionToken: sessionToken ?? this.sessionToken,
+      company: company ?? this.company,
+      user: user ?? this.user,
+    );
+  }
 }
 
 class Company {
   final String? name;
   final String? logoUrl;
   final List<String>? suggestedAIPrompts;
+  final bool enableSuggestedPrompts;
 
   Company({
     required this.name,
     required this.logoUrl,
     required this.suggestedAIPrompts,
+    required this.enableSuggestedPrompts,
   });
 
   factory Company.fromJson(Map<String, dynamic> json) {
@@ -43,6 +57,7 @@ class Company {
       logoUrl: json['logo_url'],
       suggestedAIPrompts: (json['suggested_ai_prompts'] as List<dynamic>?)
           ?.cast<String>(),
+      enableSuggestedPrompts: json['enable_suggested_prompts'] ?? false,
     );
   }
 
@@ -51,6 +66,7 @@ class Company {
       'name': name,
       'logo_url': logoUrl,
       'suggested_ai_prompts': suggestedAIPrompts,
+      'enable_suggested_prompts': enableSuggestedPrompts,
     };
   }
 }

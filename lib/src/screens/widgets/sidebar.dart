@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:enhanced_paginated_view/enhanced_paginated_view.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:swift_agents/src/controllers/online_provider.dart';
 import 'package:swift_agents/src/controllers/sdk_provider.dart';
 import 'package:swift_agents/src/models/conversations_response.dart';
 import 'package:swift_agents/src/screens/widgets/custom_shimmer.dart';
@@ -25,6 +28,21 @@ class SidebarWidget extends StatefulWidget {
 }
 
 class _SidebarWidgetState extends State<SidebarWidget> {
+  OnlineProvider? onlineProvider;
+  StreamSubscription<bool>? _onlineSubscription;
+
+  @override
+  void initState() {
+    onlineProvider = Provider.of<OnlineProvider>(context, listen: false);
+    super.initState();
+  }
+
+  @override
+  void dispose() {
+    _onlineSubscription?.cancel();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     final t = SwiftAgentsTheme.of(context);
@@ -32,6 +50,23 @@ class _SidebarWidgetState extends State<SidebarWidget> {
     final recents = sdkProvider.conversationsList;
     final hasNext = sdkProvider.hasNext;
     final selectedIndex = sdkProvider.selectedConversationIndex;
+
+    void _openChat(ConversationSession recent, int index) {
+      if (recent.id != null) {
+        // sdkProvider.selectedConversationIndex = index;
+        sdkProvider.openChat(recent.id!, index);
+        widget.onClose?.call();
+
+        _onlineSubscription?.cancel();
+        _onlineSubscription = onlineProvider?.onlineStream.listen((isOnline) {
+          if (isOnline && sdkProvider.currentSessionId == recent.id) {
+            sdkProvider.initConversationMessagesSock(
+              conversationId: recent.id!,
+            );
+          }
+        });
+      }
+    }
 
     return Container(
       height: double.maxFinite,
@@ -130,16 +165,12 @@ class _SidebarWidgetState extends State<SidebarWidget> {
                           index: index,
                           selectedIndex: selectedIndex,
                           onTap: () {
-                            if (recent.id != null) {
-                              // selectedIndex = index;
-                              sdkProvider.selectedConversationIndex = index;
-                              sdkProvider.openChat(recent.id!, index);
-                            }
+                            _openChat(recent, index);
                           },
                           item: recent,
                         ),
                         if (((index + 1) == recents.length) &&
-                            sdkProvider.isGetConversionsLoading)
+                            sdkProvider.isGetConversationsLoading)
                           CustomShimmer(
                             physics: NeverScrollableScrollPhysics(),
                             itemCount: 2,
@@ -159,7 +190,6 @@ class _SidebarWidgetState extends State<SidebarWidget> {
           InkWell(
             onTap: () {
               widget.onNewChat?.call();
-              sdkProvider.selectedConversationIndex = null;
             },
             child: Container(
               height: 50,
@@ -291,10 +321,13 @@ class _RecentItem extends StatelessWidget {
           color: isSelected ? Colors.white : Colors.transparent,
           borderRadius: BorderRadius.circular(12),
         ),
-        child: Text(
-          item.subject ?? item.lastMessage ?? item.type ?? '',
-          overflow: TextOverflow.ellipsis,
-          style: style,
+        child: Opacity(
+          opacity: item.resolved ? 0.65 : 1,
+          child: Text(
+            item.subject ?? item.lastMessage ?? item.type ?? '',
+            overflow: TextOverflow.ellipsis,
+            style: style,
+          ),
         ),
       ),
     );

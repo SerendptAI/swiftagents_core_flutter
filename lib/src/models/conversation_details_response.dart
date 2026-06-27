@@ -63,12 +63,16 @@ class ConversationMessage {
   final String? content;
   final DateTime? timestamp;
   final List<AttachmentModel>? attachments;
+  final String? authorName;
+  final String? avatarUrl;
 
   ConversationMessage({
     this.role,
     this.content,
     this.timestamp,
     this.attachments,
+    this.authorName,
+    this.avatarUrl,
   });
 
   factory ConversationMessage.fromJson(
@@ -83,6 +87,8 @@ class ConversationMessage {
       attachments: (json['attachments'] as List<dynamic>?)
           ?.map((e) => AttachmentModel.fromJson(e))
           .toList(),
+      authorName: json['author_name'],
+      avatarUrl: json['avatar_url'],
     );
   }
 
@@ -92,6 +98,8 @@ class ConversationMessage {
       'content': content,
       'timestamp': timestamp?.toIso8601String(),
       'attachments': attachments?.map((e) => e.toJson()).toList(),
+      'author_name': authorName,
+      'avatar_url': avatarUrl,
     };
   }
 }

@@ -39,18 +39,15 @@ class SwiftAgentsView extends StatelessWidget {
     final ctxOnlineProvider = sdkContext.onlineProvider;
     final ctxPermissionsProvider = sdkContext.permissionsProvider;
 
-
     return SwiftAgentsTheme(
-      data: theme  ?? SwiftAgentsThemeData.light(),
+      data: theme ?? SwiftAgentsThemeData.light(),
       child: MultiProvider(
         providers: [
           ChangeNotifierProvider.value(value: ctxSdkProvider),
           ChangeNotifierProvider.value(value: ctxOnlineProvider),
           ChangeNotifierProvider.value(value: ctxPermissionsProvider),
         ],
-        child: _SwiftAgentsViewBody(
-          theme: theme,
-        ),
+        child: _SwiftAgentsViewBody(theme: theme),
       ),
     );
   }
@@ -78,8 +75,10 @@ class _SwiftAgentsViewBodyState extends State<_SwiftAgentsViewBody>
       sdkProvider.createNewChat();
     }
 
-    sdkProvider.initiateSession().then((session){
-      if (session != null) sdkProvider.getConversations(checkConversationsLoaded: true);
+    sdkProvider.initiateSession().then((session) {
+      if (session != null) {
+        sdkProvider.getConversations(checkConversationsLoaded: true);
+      }
     });
 
     onlineProvider.onlineStream.listen((bool isOnline) {
@@ -96,7 +95,6 @@ class _SwiftAgentsViewBodyState extends State<_SwiftAgentsViewBody>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       checkInternetConnection();
     });
-
 
     _animationController = AnimationController(
       vsync: this,
@@ -159,52 +157,63 @@ class _SwiftAgentsViewBodyState extends State<_SwiftAgentsViewBody>
               1.0; // Optional: You could scale down slightly if desired (e.g., 1.0 - (0.05 * _animationController.value))
           double borderRadius = 50.0 * _animationController.value;
 
-          return Stack(
-            children: [
-              // 1. BACKGROUND: Sidebar Screen (Constrained to 40% width)
-              SizedBox(
-                width: maxSlide,
-                child: SidebarWidget(
-                  onClose: () => _animationController.reverse(),
-                  onNewChat: () {
-                    final sdkProvider = context.read<SdkProvider>();
-                    sdkProvider.createNewChat();
-                    _animationController.reverse();
-                  },
-                ),
-              ),
+          return ClipRect(
+            child: SizedBox(
+              width: screenWidth,
+              child: Stack(
+                clipBehavior: Clip.hardEdge,
+                children: [
+                  // 1. BACKGROUND: Sidebar Screen (Constrained to 40% width)
+                  SizedBox(
+                    width: maxSlide,
+                    child: SidebarWidget(
+                      onClose: () =>
+                          Future.delayed(Duration(microseconds: 800), () {
+                            _animationController.reverse();
+                          }),
+                      onNewChat: () {
+                        final sdkProvider = context.read<SdkProvider>();
+                        sdkProvider.createNewChat();
+                        Future.delayed(Duration(microseconds: 800), () {
+                          _animationController.reverse();
+                        });
+                      },
+                    ),
+                  ),
 
-              // 2. FOREGROUND: Main Content with Drag Gestures
-              Transform.translate(
-                offset: Offset(slide, 0),
-                child: Transform.scale(
-                  scale: scale,
-                  alignment: Alignment.centerLeft,
-                  child: GestureDetector(
-                    // Horizontal drag handles manual scrolling
-                    onHorizontalDragUpdate: (details) =>
-                        _handleDragUpdate(details, maxSlide),
-                    onHorizontalDragEnd: (details) =>
-                        _handleDragEnd(details, maxSlide),
-                    child: Container(
-                      color: theme.sidebarBg,
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.only(
-                          topLeft: Radius.circular(borderRadius),
-                        ),
+                  // 2. FOREGROUND: Main Content with Drag Gestures
+                  Transform.translate(
+                    offset: Offset(slide, 0),
+                    child: Transform.scale(
+                      scale: scale,
+                      alignment: Alignment.centerLeft,
+                      child: GestureDetector(
+                        // Horizontal drag handles manual scrolling
+                        onHorizontalDragUpdate: (details) =>
+                            _handleDragUpdate(details, maxSlide),
+                        onHorizontalDragEnd: (details) =>
+                            _handleDragEnd(details, maxSlide),
                         child: Container(
-                          color: theme.background,
-                          child: HomeScreen(
-                            onMenuTap: _toggleSidebar,
-                            onClose: () => Navigator.of(context).maybePop(),
+                          color: theme.sidebarBg,
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.only(
+                              topLeft: Radius.circular(borderRadius),
+                            ),
+                            child: Container(
+                              color: theme.background,
+                              child: HomeScreen(
+                                onMenuTap: _toggleSidebar,
+                                onClose: () => Navigator.of(context).maybePop(),
+                              ),
+                            ),
                           ),
                         ),
                       ),
                     ),
                   ),
-                ),
+                ],
               ),
-            ],
+            ),
           );
         },
       ),

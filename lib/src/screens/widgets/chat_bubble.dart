@@ -7,6 +7,8 @@ import 'package:swift_agents/src/constants/variables.dart';
 import 'package:swift_agents/src/controllers/sdk_provider.dart';
 import 'package:swift_agents/src/models/msg_model.dart';
 import 'package:swift_agents/src/models/upload_attachments_response.dart';
+import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
+import 'package:markdown/markdown.dart' as md;
 import '../../../swift_agents.dart';
 import 'get_cached_image.dart';
 
@@ -62,27 +64,47 @@ class _ChatBubbleState extends State<ChatBubble> {
   }
 
   void _startTyping() {
-    _timer = Timer.periodic(const Duration(microseconds: 600), (timer) {
-      if (_currentIndex < widget.message.text.length) {
-        if (mounted) {
-          setState(() {
-            _displayedText += widget.message.text[_currentIndex];
-            _currentIndex++;
-          });
-        }
-      } else {
-        _timer?.cancel();
+    const interval = Duration(milliseconds: 18);
+
+    _timer?.cancel();
+
+    _timer = Timer.periodic(interval, (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
       }
+
+      final text = widget.message.text;
+
+      if (_currentIndex >= text.length) {
+        timer.cancel();
+        return;
+      }
+
+      // Larger messages = larger chunks
+      final chunkSize = switch (text.length) {
+        <= 200 => 4,
+        <= 800 => 10,
+        <= 2000 => 20,
+        _ => 40,
+      };
+
+      final nextIndex = min(_currentIndex + chunkSize, text.length);
+
+      setState(() {
+        _displayedText = text.substring(0, nextIndex);
+        _currentIndex = nextIndex;
+      });
     });
   }
 
   Color getFileColor(String extension) {
     switch (extension.toLowerCase().replaceAll('.', '')) {
-    // Adobe
+      // Adobe
       case 'pdf':
         return const Color(0xFFD32F2F); // Adobe Red
 
-    // Microsoft Office
+      // Microsoft Office
       case 'doc':
       case 'docx':
         return const Color(0xFF185ABD); // Word Blue
@@ -96,7 +118,7 @@ class _ChatBubbleState extends State<ChatBubble> {
       case 'pptx':
         return const Color(0xFFD24726); // PowerPoint Orange
 
-    // Images
+      // Images
       case 'jpg':
       case 'jpeg':
       case 'png':
@@ -105,7 +127,7 @@ class _ChatBubbleState extends State<ChatBubble> {
       case 'svg':
         return const Color(0xFF8E44AD); // Vibrant Purple
 
-    // Video
+      // Video
       case 'mp4':
       case 'mov':
       case 'avi':
@@ -113,7 +135,7 @@ class _ChatBubbleState extends State<ChatBubble> {
       case 'webm':
         return const Color(0xFFE91E63); // Pink
 
-    // Audio
+      // Audio
       case 'mp3':
       case 'wav':
       case 'aac':
@@ -121,7 +143,7 @@ class _ChatBubbleState extends State<ChatBubble> {
       case 'flac':
         return const Color(0xFF9C27B0); // Deep Purple
 
-    // Archives
+      // Archives
       case 'zip':
       case 'rar':
       case '7z':
@@ -129,14 +151,14 @@ class _ChatBubbleState extends State<ChatBubble> {
       case 'gz':
         return const Color(0xFFFF9800); // Orange
 
-    // Executables
+      // Executables
       case 'exe':
       case 'msi':
       case 'apk':
       case 'ipa':
         return const Color(0xFF607D8B); // Blue Grey
 
-    // Code
+      // Code
       case 'dart':
         return const Color(0xFF0175C2); // Dart Blue
 
@@ -162,7 +184,7 @@ class _ChatBubbleState extends State<ChatBubble> {
       case 'py':
         return const Color(0xFF3776AB); // Python Blue
 
-    // Text
+      // Text
       case 'txt':
       case 'rtf':
         return Colors.grey;
@@ -180,7 +202,9 @@ class _ChatBubbleState extends State<ChatBubble> {
     double extFontSize = max((0.505 * width), 20);
     final extText = attachment.getFileExtension?.toUpperCase();
     final deco = BoxDecoration(
-      color: attachment.isImage? Color(0xFF3a3a3a):getFileColor(extText ?? ''),
+      color: attachment.isImage
+          ? Color(0xFF3a3a3a)
+          : getFileColor(extText ?? ''),
       borderRadius: BorderRadius.circular(22),
     );
 
@@ -228,15 +252,18 @@ class _ChatBubbleState extends State<ChatBubble> {
     final aLength = attachments.length;
 
     if (msg.role == BubbleRole.system) {
-      return Padding(
-        padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 16),
-        child: Text(
-          msg.text.toUpperCase(), // System texts show instantly
-          style: TextStyle(
-            color: t.foreground,
-            fontSize: 12,
-            fontFamily: Fonts.dmMono,
-            package: Variables.sdkName,
+      return Align(
+        alignment: Alignment.centerLeft,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 16),
+          child: Text(
+            msg.text.toUpperCase(), // System texts show instantly
+            style: TextStyle(
+              color: t.foreground,
+              fontSize: 12,
+              fontFamily: Fonts.dmMono,
+              package: Variables.sdkName,
+            ),
           ),
         ),
       );
@@ -289,15 +316,88 @@ class _ChatBubbleState extends State<ChatBubble> {
               color: isUser ? t.userBubble : t.agentBubble,
               borderRadius: const BorderRadius.all(Radius.circular(20)),
             ),
-            child: SelectableText(
-              _displayedText, // Renders the typing stream or raw user text
-              style: TextStyle(
-                color: isUser ? Colors.white : t.userBubble,
-                fontSize: 14,
-                height: 1.35,
-                fontFamily: Fonts.stoizi,
-                fontWeight: FontWeight.w400,
-                package: Variables.sdkName,
+            child: MarkdownBody(
+              data: _displayedText,
+              selectable: true,
+              extensionSet: md.ExtensionSet.gitHubFlavored,
+              shrinkWrap: true,
+              softLineBreak: true,
+              styleSheet: MarkdownStyleSheet(
+                p: TextStyle(
+                  color: isUser ? Colors.white : t.userBubble,
+                  fontSize: 14,
+                  height: 1.35,
+                  fontFamily: Fonts.stoizi,
+                  fontWeight: FontWeight.w400,
+                  package: Variables.sdkName,
+                ),
+
+                h1: TextStyle(
+                  color: isUser ? Colors.white : t.userBubble,
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  fontFamily: Fonts.stoizi,
+                  package: Variables.sdkName,
+                ),
+
+                h2: TextStyle(
+                  color: isUser ? Colors.white : t.userBubble,
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  fontFamily: Fonts.stoizi,
+                  package: Variables.sdkName,
+                ),
+
+                h3: TextStyle(
+                  color: isUser ? Colors.white : t.userBubble,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  fontFamily: Fonts.stoizi,
+                  package: Variables.sdkName,
+                ),
+
+                strong: TextStyle(
+                  color: isUser ? Colors.white : t.userBubble,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  fontFamily: Fonts.stoizi,
+                  package: Variables.sdkName,
+                ),
+
+                em: TextStyle(
+                  color: isUser ? Colors.white : t.userBubble,
+                  fontSize: 14,
+                  fontStyle: FontStyle.italic,
+                  fontFamily: Fonts.stoizi,
+                  package: Variables.sdkName,
+                ),
+
+                listBullet: TextStyle(
+                  color: isUser ? Colors.white : t.userBubble,
+                  fontSize: 14,
+                  fontFamily: Fonts.stoizi,
+                  package: Variables.sdkName,
+                ),
+
+                blockquote: TextStyle(
+                  color: isUser ? Colors.white : t.userBubble,
+                  fontSize: 14,
+                  height: 1.35,
+                  fontFamily: Fonts.stoizi,
+                  package: Variables.sdkName,
+                ),
+
+                code: TextStyle(
+                  color: isUser ? Colors.white : t.userBubble,
+                  fontSize: 13,
+                  fontFamily: Fonts.dmMono,
+                  package: Variables.sdkName,
+                ),
+
+                codeblockDecoration: BoxDecoration(
+                  color: Colors.black12,
+                  borderRadius: BorderRadius.circular(8),
+                ),
               ),
             ),
           ),

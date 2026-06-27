@@ -3,9 +3,9 @@ import 'package:swift_agents/swift_agents.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await SwiftAgentsSdk.initialize(
-    companyId: 'your_company_id',
-    apiKey: 'your_api_key',
+  await SwiftAgentsCore.init(
+      companyId: 'your_company_id',
+      apiKey: 'your_api_key',
   );
   runApp(const ExampleApp());
 }
@@ -17,11 +17,11 @@ class ExampleApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-        title: 'SwiftAgents Demo',
-        theme: ThemeData(colorScheme: .fromSeed(seedColor: Colors.deepPurple)),
-    home: const HomePage(),
+      title: 'SwiftAgents Demo',
+      theme: ThemeData(colorScheme: ColorScheme.fromSeed(seedColor: Colors.yellow)),
+      home: const HomePage(),
     );
-    }
+  }
 }
 
 class HomePage extends StatelessWidget {
@@ -29,7 +29,7 @@ class HomePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final sdkContext = SwiftAgentsSdk.getContext(email: 'user@email.com');
+    final sdkContext = SwiftAgentsCore.getContext(email: 'user@email.com');
 
     return Scaffold(
       appBar: AppBar(
@@ -64,8 +64,10 @@ class HomePage extends StatelessWidget {
             );
           },
           child: const Text('Try Dark Mode'),
+          // child: ,
         ),
       ),
     );
   }
 }
+

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:rive/rive.dart';
-import 'package:swift_agents/src/swift_agents_sdk.dart';
+import 'package:swift_agents/src/swift_agents_core.dart';
 
 class AnimatedAvatarPlayer extends StatefulWidget {
   const AnimatedAvatarPlayer({super.key});
@@ -20,10 +20,8 @@ class _AnimatedAvatarPlayerState extends State<AnimatedAvatarPlayer> {
     initRive();
   }
 
-
   void initRive() async {
-    final file = SwiftAgentsSdk.avatarFile;
-
+    final file = SwiftAgentsCore.avatarFile;
 
     if (file == null) return;
 
@@ -46,10 +44,7 @@ class _AnimatedAvatarPlayerState extends State<AnimatedAvatarPlayer> {
     return SizedBox(
       width: 80,
       height: 80,
-      child: RiveWidget(
-        controller: controller,
-        fit: Fit.cover,
-      ),
+      child: RiveWidget(controller: controller, fit: Fit.cover),
     );
   }
 }
@@ -85,7 +80,7 @@ class _AnimatedAvatarPlayerState extends State<AnimatedAvatarPlayer> {
 //   }
 //
 //   void initRive() async {
-//     final avatarFile = SwiftAgentsSdk.avatarFile;
+//     final avatarFile = SwiftAgentsCore.avatarFile;
 //     if (avatarFile == null) return;
 //
 //     // Use your original structure
