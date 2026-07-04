@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 class SwiftAgentsThemeData {
-  final Color primary;
   final Color sidebarBg;
   final Color userBubble;
   final Color agentBubble;
@@ -11,7 +10,6 @@ class SwiftAgentsThemeData {
   final Color border;
 
   const SwiftAgentsThemeData({
-    this.primary = const Color(0xFF1F5EFF),
     this.sidebarBg = const Color(0xFF8AA0FF),
     this.userBubble = const Color(0xFF006BE5),
     this.agentBubble = const Color(0xFFF2F8FF),

@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:provider/provider.dart';
+import 'package:swift_agents/src/controllers/online_provider.dart';
 import 'package:swift_agents/src/controllers/sdk_provider.dart';
 import '../../../swift_agents.dart';
 import '../../constants/fonts.dart';
@@ -26,6 +29,8 @@ class ChatInput extends StatefulWidget {
 }
 
 class _ChatInputState extends State<ChatInput> {
+  String _tempTxt = '';
+  bool isOnline = false;
   static const int _maxFiles = 5;
   final List<UploadFile> _selectedFiles = [];
 
@@ -85,6 +90,7 @@ class _ChatInputState extends State<ChatInput> {
     final sdkProvider = Provider.of<SdkProvider>(context, listen: false);
 
     final locked =
+        !isOnline ||
         !sdkProvider.isInitialized ||
         sdkProvider.isCurrentMsgSending ||
         sdkProvider.isUploadAttachmentsLoading ||
@@ -111,9 +117,21 @@ class _ChatInputState extends State<ChatInput> {
     _controller.clear();
   }
 
+  void checkInternetConnection() {
+    final onlineProvider = Provider.of<OnlineProvider>(context, listen: false);
+    isOnline = onlineProvider.isOnline;
+    onlineProvider.onlineStream.listen((bool _isOnline) async {
+  
+        setState(() {
+          isOnline = _isOnline;
+        });
+    });
+  }
+
   @override
   void initState() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      checkInternetConnection();
       final sdkProvider = Provider.of<SdkProvider>(context, listen: false);
       sdkProvider.clearPreviousUploadedFiles();
     });
@@ -258,7 +276,7 @@ class _ChatInputState extends State<ChatInput> {
           ),
         Container(
           margin: const EdgeInsets.fromLTRB(12, 8, 12, 12),
-          padding: const EdgeInsets.fromLTRB(16, 12, 12, 12),
+          padding: const EdgeInsets.fromLTRB(16, 12, 12, 10),
           decoration: BoxDecoration(
             color: Colors.white,
             border: Border.all(color: t.border),
@@ -274,6 +292,9 @@ class _ChatInputState extends State<ChatInput> {
                 focusNode: _focusNode,
                 controller: _controller,
                 onSubmitted: (_) => _send(),
+                onChanged: (_) {
+                  setState(() => _tempTxt = _controller.text.trim());
+                },
                 style: TextStyle(
                   fontSize: 14,
                   fontFamily: Fonts.stoizi,
@@ -309,13 +330,23 @@ class _ChatInputState extends State<ChatInput> {
                   const Spacer(),
                   GestureDetector(
                     onTap: () => _send(),
-                    child: Opacity(
-                      opacity: lockMsgSend() ? 0.5 : 1,
+                    child: Container(
+                      padding: EdgeInsets.fromLTRB(2, 2, 2, 0),
+                      alignment: Alignment.bottomCenter,
+                      decoration: BoxDecoration(
+                        color: lockMsgSend() || _tempTxt.isEmpty
+                            ? Colors.transparent
+                            : t.userBubble,
+                        shape: BoxShape.circle,
+                      ),
                       child: SvgPicture.asset(
                         'assets/svgs/send.svg',
                         package: Variables.sdkName,
-                        width: 33,
-                        height: 33,
+                        colorFilter: (lockMsgSend() || _tempTxt.isEmpty)
+                            ? null
+                            : ColorFilter.mode(Colors.white, BlendMode.srcIn),
+                        width: 32,
+                        height: 32,
                       ),
                     ),
                   ),

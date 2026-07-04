@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:intl/intl.dart';
 
 class Utils {
   DateTime? getJwtExpiryTime(String token) {
@@ -39,5 +40,27 @@ class Utils {
     } catch (e) {
       return null; // Malformed token or decode error
     }
+  }
+
+  String formatDateTime(DateTime dateTime) {
+    final date = dateTime.toLocal();
+    final now = DateTime.now();
+
+    final time = DateFormat('h:mm a').format(date);
+
+    final isToday =
+        date.year == now.year && date.month == now.month && date.day == now.day;
+
+    if (isToday) {
+      return time;
+    }
+
+    final difference = now.difference(date).inDays;
+
+    if (difference < 7) {
+      return '$time Today';
+    }
+
+    return '$time ${DateFormat('M/d/yy').format(date)}';
   }
 }

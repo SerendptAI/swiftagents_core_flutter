@@ -118,7 +118,7 @@ class _SidebarWidgetState extends State<SidebarWidget> {
                 });
               },
               onRefresh: () async {
-                sdkProvider.getConversations(refresh: recents.isEmpty);
+                await sdkProvider.getConversations(refresh: true);
               },
               refreshBuilder: (context, onRefresh, child) {
                 return RefreshIndicator(

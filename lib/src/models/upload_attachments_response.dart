@@ -1,13 +1,9 @@
 class UploadAttachmentsResponse {
   final List<AttachmentModel>? attachments;
 
-  UploadAttachmentsResponse({
-    this.attachments,
-  });
+  UploadAttachmentsResponse({this.attachments});
 
-  factory UploadAttachmentsResponse.fromJson(
-    Map<String, dynamic> json,
-  ) {
+  factory UploadAttachmentsResponse.fromJson(Map<String, dynamic> json) {
     return UploadAttachmentsResponse(
       attachments: (json['attachments'] as List<dynamic>?)
           ?.map((e) => AttachmentModel.fromJson(e))
@@ -16,9 +12,7 @@ class UploadAttachmentsResponse {
   }
 
   Map<String, dynamic> toJson() {
-    return {
-      'attachments': attachments?.map((e) => e.toJson()).toList(),
-    };
+    return {'attachments': attachments?.map((e) => e.toJson()).toList()};
   }
 }
 
@@ -28,43 +22,50 @@ class AttachmentModel {
   final String? mimeType;
   final String? filename;
 
-  AttachmentModel({
-    this.url,
-    this.type,
-    this.mimeType,
-    this.filename,
-  });
+  AttachmentModel({this.url, this.type, this.mimeType, this.filename});
 
   bool get isImage {
-    final ext = url?.toLowerCase() ?? '';
+    final ext = getFileExtension?.toLowerCase() ?? '';
 
-    return ext.endsWith('.png') ||
-        ext.endsWith('.jpg') ||
-        ext.endsWith('.jpeg') ||
-        ext.endsWith('.gif') ||
-        ext.endsWith('.webp') ||
-        ext.endsWith('.heic');
+    return ext == 'png' ||
+        ext == 'jpg' ||
+        ext == 'jpeg' ||
+        ext == 'gif' ||
+        ext == 'webp' ||
+        ext == 'heic';
   }
 
+  @Deprecated(
+    'Use fileName instead. Make sure to use FileUtils.getFileNameFromSignature(fileName) to get the main file name when displaying on UI.',
+  )
   String? get getFileExtension {
-    if (url == null) return null;
-    final uri = Uri.parse(url!);
-    final filename = uri.pathSegments.isNotEmpty
-        ? uri.pathSegments.last
-        : '';
+    final rawName = filename ?? url;
 
-    final dotIndex = filename.lastIndexOf('.');
-
-    if (dotIndex == -1 || dotIndex == filename.length - 1) {
+    if (rawName == null || rawName.isEmpty) {
       return null;
     }
 
-    return filename.substring(dotIndex + 1).toLowerCase();
+    final decodedName = Uri.decodeComponent(rawName);
+    final candidate = decodedName.contains('/')
+        ? decodedName.split('/').last
+        : decodedName;
+    final normalized = candidate.contains('?')
+        ? candidate.split('?').first
+        : candidate;
+    final withoutSignaturePrefix = normalized.startsWith('sw_')
+        ? normalized.substring(normalized.indexOf('_') + 1)
+        : normalized;
+
+    final dotIndex = withoutSignaturePrefix.lastIndexOf('.');
+
+    if (dotIndex == -1 || dotIndex == withoutSignaturePrefix.length - 1) {
+      return null;
+    }
+
+    return withoutSignaturePrefix.substring(dotIndex + 1).toLowerCase();
   }
 
-  factory AttachmentModel.fromJson(
-    Map<String, dynamic> json,
-  ) {
+  factory AttachmentModel.fromJson(Map<String, dynamic> json) {
     return AttachmentModel(
       url: json['url'],
       type: json['type'],

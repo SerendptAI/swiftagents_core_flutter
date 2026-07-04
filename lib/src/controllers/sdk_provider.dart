@@ -3,7 +3,9 @@ import 'package:dio/dio.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:swift_agents/src/constants/variables.dart';
 import 'package:swift_agents/src/models/conversations_response.dart';
+import 'package:swift_agents/src/models/reopen_ticket_response.dart';
 import 'package:swift_agents/src/models/upload_attachments_response.dart';
+import 'package:swift_agents/src/screens/home_screen.dart';
 import 'package:swift_agents/src/services/conversation_messages_socket.dart';
 import 'package:swift_agents/src/services/conversations_socket.dart';
 import 'package:swift_agents/src/services/interceptors/api_logger_interceptor.dart';
@@ -47,6 +49,12 @@ class SdkProvider with ChangeNotifier {
   /// State for ChatBubble loading widget
   bool get showCurrentMsgLoading => _showMsgLoading[_currentSessionId] ?? false;
 
+  final Map<String, bool> _showMsgTyping = {};
+
+  /// State for ChatBubble typing
+  bool get showCurrentMsgTyping => _showMsgTyping[_currentSessionId] ?? false;
+
+  String? _streamedMsgID;
   String _streamedMessage = '';
   String get streamedMessage => _streamedMessage;
 
@@ -73,8 +81,10 @@ class SdkProvider with ChangeNotifier {
   // d. Chat sessions
   int? _selectedConversationIndex;
   int? get selectedConversationIndex => _selectedConversationIndex;
-  // set selectedConversationIndex(int? index) =>
-  //     _selectedConversationIndex = index;
+  ConversationSession? get selectedConversation =>
+      _selectedConversationIndex != null
+      ? _conversationsList[_selectedConversationIndex!]
+      : null;
 
   String? _currentSessionId;
 
@@ -98,7 +108,8 @@ class SdkProvider with ChangeNotifier {
   ConversationsResponse? _conversationsResponse;
   ConversationsResponse? get conversationsResponse => _conversationsResponse;
 
-  // does optimistic updates seen in sendMessages, backend not the only source.
+  // does optimistic updates as seen in sendMessages, initConversationsSock, and
+  // reOpenTicket; backend is not the only source.
   List<ConversationSession> _conversationsList = [];
   UnmodifiableListView<ConversationSession> get conversationsList =>
       UnmodifiableListView(_conversationsList);
@@ -120,6 +131,11 @@ class SdkProvider with ChangeNotifier {
   bool get isCurrentConversationMsgesSockLoading =>
       _getConversionMsgesSockLoading[_currentSessionId] ?? false;
 
+  // f. Reopen Ticket
+  final Map<String, bool> _isReopenTicketsLoading = {};
+  bool get isCurrentReopenTicketsLoading =>
+      _isReopenTicketsLoading[_currentSessionId] ?? false;
+
   // Other methods
   void _requireSession() {
     if (initSessionResponse?.sessionToken == null) {
@@ -134,11 +150,14 @@ class SdkProvider with ChangeNotifier {
 
   // UI Methods
   /// 1. Create a new chat
-  void createNewChat() {
+  void createNewChat({required bool enableMsgSocket}) {
     final id = const Uuid().v4();
     _currentSessionId = id;
     _chatSessions[id] = [];
     _selectedConversationIndex = null;
+
+    if (enableMsgSocket) initConversationMessagesSock(conversationId: id);
+
     notifyListeners();
   }
 
@@ -158,6 +177,13 @@ class SdkProvider with ChangeNotifier {
   void clearPreviousUploadedFiles() {
     _previousUploadedFiles.clear();
     notifyListeners();
+  }
+
+  /// 4. Remove stored attachment metadata
+  void removeUploadedAttachment({required UploadFile file}) {
+    _previousUploadedFiles.removeWhere(
+      (pUFile) => pUFile.filename == file.name,
+    );
   }
 
   // API ViewModels Methods
@@ -216,26 +242,49 @@ class SdkProvider with ChangeNotifier {
         !_isInitialized ||
         _isUploadAttachmentsLoading)
       return null;
+    _showMsgTyping[sessionId] = true;
     _isSendingMessages[sessionId] = true;
-    _showMsgLoading[sessionId] = true && isOnline;
+    _streamedMsgID = null;
     _streamedMessage = '';
     _messageError = null;
+    _showMsgLoading[sessionId] = false;
+    BubbleRole? currentActiveRole;
+    int activeMessageIndex = -1;
     bool hasAddedMessage = false;
+    var isAIStreamOver = false;
+    var sentAt = DateTime.now();
 
     final sessionMsgs = _chatSessions.putIfAbsent(sessionId, () => []);
+
+    if (_conversationsList.isNotEmpty) {
+      // if (sessionMsgs.isNotEmpty) {
+      // isAIStreamOver = sessionMsgs.any(
+      //   (sMsg) => [BubbleRole.inbound, BubbleRole.outbound].contains(sMsg.role),
+      // );
+      // }
+      isAIStreamOver = _conversationsList[_selectedConversationIndex ?? 0].type == "ticket";
+    }
+
+    // Only show loading widget, if user is not speaking to human (i.e AI) & isOnline
+    _showMsgLoading[sessionId] = !isAIStreamOver && isOnline;
 
     // Add user message to chat first, even before upload.
     final delinkedPrevUploadedFiles = List.of(_previousUploadedFiles);
     sessionMsgs.add(
-      MsgModel(message, BubbleRole.user, delinkedPrevUploadedFiles),
+      MsgModel(
+        null,
+        message,
+        isAIStreamOver ? BubbleRole.inbound : BubbleRole.user,
+        delinkedPrevUploadedFiles,
+        sentAt,
+        authorName: null,
+        avatarUrl: null,
+        authorType: AuthorType.user,
+        isSent: false,
+      ),
     );
     notifyListeners();
 
-    // 1. Declare these outside so they are accessible in the finally block
-    BubbleRole? currentActiveRole;
-    int activeMessageIndex = -1;
-
-    if (!_isInitialized) return null;
     try {
       _requireSession();
       await for (final chunk in client.sendMessage(
@@ -243,16 +292,32 @@ class SdkProvider with ChangeNotifier {
         message: message,
         attachments: _previousUploadedFiles,
       )) {
+        final disableErrorMessage =
+            !(isAIStreamOver && chunk.role == BubbleRole.error);
         if (!hasAddedMessage) {
-          // if (chunk.role != currentActiveRole) { // Allows persistent display of system message
+          // if (chunk.role != currentActiveRole) { // Allows persistent display of system messages
           currentActiveRole = chunk.role;
           _streamedMessage = '';
-          _showMsgLoading[sessionId] = false;
-          sessionMsgs.add(
-            MsgModel('', currentActiveRole, null),
-          ); // AI doesn't send attachments yet
-          activeMessageIndex = sessionMsgs.length - 1;
-          hasAddedMessage = true;
+          if (!isAIStreamOver) _showMsgLoading[sessionId] = false;
+          if (sessionMsgs.isNotEmpty) sessionMsgs.last.isSent = true;
+          if (chunk.text.isNotEmpty && disableErrorMessage) {
+            print('Adding new message to sessionMsgs: ${chunk.text}');
+            sessionMsgs.add(
+              MsgModel(
+                null,
+                '',
+                currentActiveRole,
+                null,
+                sentAt,
+                authorName: chunk.authorName,
+                avatarUrl: chunk.avatarUrl,
+                authorType: AuthorType.ai,
+              ),
+            ); // AI doesn't send attachments yet
+            activeMessageIndex = sessionMsgs.length - 1;
+            hasAddedMessage = true;
+          }
+
           _previousUploadedFiles.clear();
         }
 
@@ -263,23 +328,35 @@ class SdkProvider with ChangeNotifier {
           );
           _conversationsList.insert(0, chunk.session!);
           _selectedConversationIndex = 0;
+          // Also Update _streamedMsgID as it's only sent on stage done
+          _streamedMsgID = chunk.id;
           notifyListeners();
           continue;
         }
 
-        if (chunk.role == BubbleRole.system) {
+        if (activeMessageIndex != -1 &&
+            chunk.text.isNotEmpty &&
+            disableErrorMessage) {
           _streamedMessage = chunk.text;
-        } else {
-          _streamedMessage += chunk.text;
-        }
-
-        if (activeMessageIndex != -1) {
           currentActiveRole = chunk.role;
-          sessionMsgs[activeMessageIndex] = MsgModel(
+
+          var sUpdatedAt = chunk.session?.updatedAt;
+          if (sUpdatedAt != null) sentAt = sUpdatedAt;
+
+          var newMsg = MsgModel(
+            null,
             _streamedMessage.trim(),
             currentActiveRole,
             null,
+            sentAt,
+            authorName: chunk.authorName,
+            avatarUrl: chunk.avatarUrl,
+            authorType: AuthorType.ai,
           );
+
+          (sessionMsgs.isEmpty)
+              ? sessionMsgs.add(newMsg)
+              : sessionMsgs[activeMessageIndex] = newMsg;
         }
 
         notifyListeners();
@@ -292,6 +369,11 @@ class SdkProvider with ChangeNotifier {
       _isSendingMessages[sessionId] = false;
       _showMsgLoading[sessionId] = false;
       notifyListeners();
+
+      Future.delayed(const Duration(milliseconds: 800), () {
+        _showMsgTyping[sessionId] = false;
+        notifyListeners();
+      });
     }
     return null;
   }
@@ -309,12 +391,6 @@ class SdkProvider with ChangeNotifier {
     // which is denoted by _hasLoadedConversations = true.
     if (checkConversationsLoaded && _hasLoadedConversations) return null;
 
-    if (refresh) {
-      _conversationsList.clear();
-      _nextCursor = null;
-      _hasNext = true;
-    }
-
     // Nothing left to load
     if (!_hasNext && !refresh) {
       return null;
@@ -326,20 +402,26 @@ class SdkProvider with ChangeNotifier {
     try {
       _requireSession();
       final response = await client.listConversations(
-        cursor: _nextCursor,
+        cursor: refresh ? null : _nextCursor,
         limit: 20,
       );
 
       if (response != null) {
-        final fetchedItems = response.items ?? [];
+        if (refresh) {
+          // Non-Pagnated (refreshed)
+          _conversationsList = response.items ?? [];
+        } else {
+          // Paganated
+          final fetchedItems = response.items ?? [];
 
-        final existingIds = _conversationsList.map((e) => e.id).toSet();
+          final existingIds = _conversationsList.map((e) => e.id).toSet();
 
-        final newItems = fetchedItems.where(
-          (fItem) => !existingIds.contains(fItem.id),
-        );
+          final newItems = fetchedItems.where(
+            (fItem) => !existingIds.contains(fItem.id),
+          );
 
-        _conversationsList.addAll(newItems);
+          _conversationsList.addAll(newItems);
+        }
 
         _nextCursor = response.nextCursor;
         _hasNext = response.hasNext;
@@ -358,7 +440,8 @@ class SdkProvider with ChangeNotifier {
   Future<ConversationDetailsResponse?> getConversationMessages({
     required String sessionId,
   }) async {
-    if (_getConversionMsgesLoading[sessionId] == true) return null;
+    if (_getConversionMsgesLoading[sessionId] == true || !_isInitialized)
+      return null;
 
     _getConversionMsgesLoading[sessionId] = true;
     notifyListeners();
@@ -371,8 +454,16 @@ class SdkProvider with ChangeNotifier {
 
       if (details != null) {
         final formattedMsgs = details.messages.map((msg) {
-          final role = msg.role == 'user' ? BubbleRole.user : BubbleRole.agent;
-          return MsgModel(msg.content ?? '', role, msg.attachments);
+          return MsgModel(
+            msg.id,
+            msg.content ?? '',
+            msg.role ?? BubbleRole.assistant,
+            msg.attachments,
+            msg.timestamp,
+            authorName: msg.authorName,
+            avatarUrl: msg.avatarUrl,
+            authorType: msg.authorType,
+          );
         }).toList();
 
         _chatSessions[details.id] = formattedMsgs;
@@ -389,8 +480,7 @@ class SdkProvider with ChangeNotifier {
   Future<UploadAttachmentsResponse?> uploadAttachments({
     required List<UploadFile> files,
   }) async {
-    _requireSession();
-    if (_isUploadAttachmentsLoading) return null;
+    if (_isUploadAttachmentsLoading || !_isInitialized) return null;
 
     uploadProgress.value = 0.0;
     _isUploadAttachmentsLoading = true;
@@ -441,19 +531,51 @@ class SdkProvider with ChangeNotifier {
     }
   }
 
-  void removeUploadedAttachment({required UploadFile file}) {
-    _previousUploadedFiles.removeWhere(
-      (pUFile) => pUFile.filename == file.name,
-    );
+  /// 6. Re-open a Ticket
+  Future<ReopenTicketResponse?> reOpenTicket({
+    required String conversationId,
+  }) async {
+    _requireSession();
+    if (_isReopenTicketsLoading[conversationId] == true || !_isInitialized)
+      return null;
+
+    _isReopenTicketsLoading[conversationId] = true;
+    notifyListeners();
+
+    try {
+      final response = await client.reopenTicket(
+        conversationId: conversationId,
+      );
+
+      if (response != null) {
+        final isReOpened = response.status == "reopened";
+
+        if (isReOpened) {
+          // Find the reopened conversation.
+          final updatedIndx = _conversationsList.indexWhere(
+            (convo) => convo.id == (response.ticketId ?? conversationId),
+          );
+          // Do an optismitic update...
+          _conversationsList[updatedIndx].copyWith(resolved: false);
+        }
+
+        notifyListeners();
+      }
+
+      return response;
+    } finally {
+      _isReopenTicketsLoading[conversationId] = false;
+      notifyListeners();
+    }
   }
 
   // WEB SOCKETS
-  /// 6. Initate Socket Connection
+  /// 1. Initate Conversation Messages Socket
   void initConversationMessagesSock({required String conversationId}) {
     if (_initSessionResponse == null) {
-      debugPrint(
-        'Socket connection cannot be initiated. Session token or session ID is null.',
-      );
+      // debugPrint(
+      //   'Socket connection cannot be initiated. Session token is null.',
+      // );
       return;
     }
 
@@ -462,44 +584,91 @@ class SdkProvider with ChangeNotifier {
     _getConversionMsgesSockLoading[conversationId] = true;
     notifyListeners();
 
+    _requireSession();
     conversationMsgSocket.connect(
       _initSessionResponse?.sessionToken ?? '',
       conversationId,
       onInit: (ConversationDetailsResponse? details) {
         _getConversionMsgesSockLoading[conversationId] = false;
         notifyListeners();
-        // debugPrint('USER(${client.email}) MSG SOCKET CONNECTED');
-        
+        logDebug('USER(${client.email}) MSG SOCKET CONNECTED');
+
         if (details != null) {
           final formattedMsgs = details.messages.map((msg) {
-            final role = msg.role == 'user'
-                ? BubbleRole.user
-                : BubbleRole.agent;
-            return MsgModel(msg.content ?? '', role, msg.attachments);
+            return MsgModel(
+              msg.id,
+              msg.content ?? '',
+              msg.role ?? BubbleRole.assistant,
+              msg.attachments,
+              msg.timestamp,
+              authorName: msg.authorName,
+              avatarUrl: msg.avatarUrl,
+              authorType: msg.authorType,
+            );
           }).toList();
 
           _chatSessions[details.id] = formattedMsgs;
           notifyListeners();
         }
       },
-      onUpdate: (msg) {
+      onUpdate: (msgs) {
         _getConversionMsgesSockLoading[conversationId] = false;
         notifyListeners();
+        logDebug('USER(${client.email}) MSG SOCKET UPDATED: ${msgs?.toJson()}');
 
-        if (msg != null) {
-          final role = msg.role == 'user' ? BubbleRole.user : BubbleRole.agent;
-          _chatSessions[conversationId]?.add(
-            MsgModel(msg.content ?? '', role, msg.attachments),
-          );
-          notifyListeners();
-        }
+        mergeMessagesUpdate(msgs);
+
+        // If msg updates starts arriving individually use this
+        // if (msg != null) {
+        //   final role = msg.role == 'user' ? BubbleRole.user : BubbleRole.agent;
+        //   String msgId = msg.id ?? '';
+        //   final chatMsgs = _chatSessions[conversationId];
+
+        //   if (msgId.isEmpty) {
+        //     _chatSessions[conversationId]?.add(
+        //       MsgModel(
+        //         msg.id,
+        //         msg.content ?? '',
+        //         role,
+        //         msg.attachments,
+        //         msg.timestamp,
+        //         authorName: msg.authorName,
+        //         avatarUrl: msg.avatarUrl,
+        //       ),
+        //     );
+        //   } else {
+        //     // Get index of existing msg, if any.
+        //     final updatedMsgIndex = (chatMsgs ?? []).indexWhere(
+        //       (cMsg) => cMsg.id == msg.id,
+        //     );
+
+        //     // Create msg instance
+        //     final newMsg = MsgModel(
+        //       msg.id,
+        //       msg.content ?? '',
+        //       role,
+        //       msg.attachments,
+        //       msg.timestamp,
+        //       authorName: msg.authorName,
+        //       avatarUrl: msg.avatarUrl,
+        //     );
+
+        //     // Update new msg
+        //     if (updatedMsgIndex == -1) {
+        //       _chatSessions[conversationId]?.add(newMsg);
+        //     } else {
+        //       _chatSessions[conversationId]?[updatedMsgIndex] = newMsg;
+        //     }
+        //   }
+        //   notifyListeners();
+        // }
       },
       onDisconnect: () {
         _getConversionMsgesSockLoading[conversationId] = false;
         notifyListeners();
-        // debugPrint('USER(${client.email}) MSG SOCKET DISCONNECTED');
+        logDebug('USER(${client.email}) MSG SOCKET DISCONNECTED');
       },
-      onError: (error) {
+      onError: (error, [trace]) {
         _getConversionMsgesSockLoading[conversationId] = false;
         if (error == "Invalid or missing SDK token") {
           initiateSession(refresh: true).then((session) {
@@ -508,13 +677,53 @@ class SdkProvider with ChangeNotifier {
             }
           });
         } else {
-          debugPrint('USER(${client.email}) MESSAGE SOCKET ERROR: $error');
+          logError('USER(${client.email}) MESSAGE SOCKET ERROR: $error', trace);
         }
       },
     );
   }
 
-  void initConversationsSock({required String conversationId}) {
+  void mergeMessagesUpdate(ConversationDetailsResponse? details) {
+    logWarning(
+      'USER(${client.email}) MSG SOCKET FETCHED 1: ${details?.toJson()}',
+    );
+
+    if (details != null && details.messages.isNotEmpty) {
+      final messages = details.messages;
+      // Rejects socket updates triggered by the current streamed message.
+      if (_streamedMsgID != null && messages.isNotEmpty) {
+        final disableUpdate = _streamedMsgID == messages.last.id;
+        if (disableUpdate) return;
+      }
+
+      // Update messages
+      final formattedMsgs = messages.map((msg) {
+        return MsgModel(
+          msg.id,
+          msg.content ?? '',
+          msg.role ?? BubbleRole.assistant,
+          msg.attachments,
+          msg.timestamp,
+          authorName: msg.authorName,
+          avatarUrl: msg.avatarUrl,
+          authorType: msg.authorType,
+        );
+      }).toList();
+
+      final currentChatMessages = _chatSessions[details.id];
+      if (currentChatMessages != null) {
+        currentChatMessages
+          ..clear()
+          ..addAll(formattedMsgs);
+      } else {
+        _chatSessions[details.id] = formattedMsgs;
+      }
+      notifyListeners();
+    }
+  }
+
+  /// 2. Initate Conversations Socket
+  void initConversationsSock() {
     if (_initSessionResponse == null) {
       debugPrint(
         'Socket connection cannot be initiated. Session token or session ID is null.',
@@ -522,57 +731,70 @@ class SdkProvider with ChangeNotifier {
       return;
     }
 
-    if (_isInitConversationsSockLoading == true) return;
+    if (_isInitConversationsSockLoading == true || !_isInitialized) return;
 
     _isInitConversationsSockLoading = true;
     notifyListeners();
 
+    _requireSession();
     conversationsSocket.connect(
       _initSessionResponse?.sessionToken ?? '',
-      conversationId,
       onInit: (ConversationsResponse? conversationsResponse) {
         _isInitConversationsSockLoading = false;
         notifyListeners();
-        // debugPrint('USER(${client.email}) CONVERSATIONS SOCKET CONNECTED');
+        logDebug('USER(${client.email}) CONVERSATIONS SOCKET CONNECTED');
         // if (conversationsResponse != null){
         // Do something...
         //   notifyListeners();
         // }
       },
-      onUpdate: (ConversationSession? convoUpdate) {
+      onUpdate: (ConversationsResponse? convosUpdate) {
         _isInitConversationsSockLoading = false;
-         notifyListeners();
+        notifyListeners();
+        logDebug(
+          'USER(${client.email}) CONVO SOCKET UPDATED: ${convosUpdate?.toJson()}',
+        );
 
-        if (convoUpdate != null) {
-          final updatedConvoIndex = _conversationsList.indexWhere(
-            (conversation) => conversation.id == convoUpdate.id,
-          );
-          if (updatedConvoIndex != -1) {
-            _conversationsList[updatedConvoIndex] = convoUpdate;
-          } else {
-            _conversationsList.insert(0, convoUpdate);
-          }
-          notifyListeners();
-        }
+        mergeConversationsUpdate(convosUpdate);
       },
       onDisconnect: () {
         _isInitConversationsSockLoading = false;
-         notifyListeners();
-        debugPrint('USER(${client.email}) CONVERSATIONS SOCKET DISCONNECTED');
+        notifyListeners();
+        logDebug('USER(${client.email}) CONVERSATIONS SOCKET DISCONNECTED');
       },
-      onError: (error) {
+      onError: (error, [trace]) {
         _isInitConversationsSockLoading = false;
         notifyListeners();
         if (error == "Invalid or missing SDK token") {
           initiateSession(refresh: true).then((session) {
             if (session != null) {
-              initConversationMessagesSock(conversationId: conversationId);
+              initConversationsSock();
             }
           });
         } else {
-          debugPrint('USER(${client.email}) MESSAGE SOCKET ERROR: $error');
+          logError(
+            'USER(${client.email}) CONVERSATIONS SOCKET ERROR: $error',
+            trace,
+          );
         }
       },
     );
+  }
+
+  void mergeConversationsUpdate(ConversationsResponse? update) {
+    if (update != null) {
+      for (ConversationSession convoUpdate in (update.items ?? []).reversed) {
+        final updatedConvoIndex = _conversationsList.indexWhere(
+          (c) => convoUpdate.id == c.id,
+        );
+
+        if (updatedConvoIndex != -1) {
+          _conversationsList.removeAt(updatedConvoIndex);
+        }
+        _conversationsList.insert(0, convoUpdate);
+      }
+
+      notifyListeners();
+    }
   }
 }

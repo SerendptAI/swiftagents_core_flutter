@@ -65,26 +65,35 @@ class _SwiftAgentsViewBody extends StatefulWidget {
 class _SwiftAgentsViewBodyState extends State<_SwiftAgentsViewBody>
     with SingleTickerProviderStateMixin {
   final int sidebarMilliSecond = 260;
+  OnlineProvider? onlineProvider;
 
   late AnimationController _animationController;
 
-  void checkInternetConnection() {
-    final onlineProvider = Provider.of<OnlineProvider>(context, listen: false);
+  void init() async {
     final sdkProvider = Provider.of<SdkProvider>(context, listen: false);
-    if (sdkProvider.messages.isEmpty) {
-      sdkProvider.createNewChat();
+    await sdkProvider.initiateSession();
+
+    final session = sdkProvider.initSessionResponse;
+    if (session != null) {
+      sdkProvider.initConversationsSock();
+      sdkProvider.getConversations(checkConversationsLoaded: true);
+      sdkProvider.initConversationMessagesSock(conversationId: sdkProvider.currentSessionId!);
     }
+  }
 
-    sdkProvider.initiateSession().then((session) {
-      if (session != null) {
-        sdkProvider.getConversations(checkConversationsLoaded: true);
-      }
-    });
+  void checkInternetConnection() {
+    onlineProvider = Provider.of<OnlineProvider>(context, listen: false);
+    final sdkProvider = Provider.of<SdkProvider>(context, listen: false);
+    
+    if (sdkProvider.messages.isEmpty) {
+      sdkProvider.createNewChat(enableMsgSocket: false);
+    }
+    
+    if (onlineProvider?.isOnline ?? false) init();
 
-    onlineProvider.onlineStream.listen((bool isOnline) {
+    onlineProvider?.onlineStream.listen((bool isOnline) async {
       if (isOnline) {
-        sdkProvider.initiateSession();
-        sdkProvider.getConversations(checkConversationsLoaded: true);
+        init();
       }
     });
   }
@@ -173,7 +182,7 @@ class _SwiftAgentsViewBodyState extends State<_SwiftAgentsViewBody>
                           }),
                       onNewChat: () {
                         final sdkProvider = context.read<SdkProvider>();
-                        sdkProvider.createNewChat();
+                        sdkProvider.createNewChat(enableMsgSocket: onlineProvider?.isOnline ?? false);
                         Future.delayed(Duration(microseconds: 800), () {
                           _animationController.reverse();
                         });

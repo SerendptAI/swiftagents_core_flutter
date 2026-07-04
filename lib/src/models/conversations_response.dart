@@ -3,11 +3,19 @@ class ConversationsResponse {
   final String? nextCursor;
   final bool hasNext;
 
-  ConversationsResponse({
-    this.items,
-    this.nextCursor,
-    this.hasNext = false,
-  });
+  ConversationsResponse({this.items, this.nextCursor, this.hasNext = false});
+
+  ConversationsResponse copyWith({
+    List<ConversationSession>? items,
+    String? nextCursor,
+    bool? hasNext,
+  }) {
+    return ConversationsResponse(
+      items: items ?? this.items,
+      nextCursor: nextCursor ?? this.nextCursor,
+      hasNext: hasNext ?? this.hasNext,
+    );
+  }
 
   factory ConversationsResponse.fromJson(Map<String, dynamic> json) {
     return ConversationsResponse(
@@ -34,6 +42,7 @@ class ConversationSession {
   final String? subject;
   final String? lastMessage;
   final bool resolved;
+  final DateTime? resolvedAt;
   final int messageCount;
   final DateTime? createdAt;
   final DateTime? updatedAt;
@@ -44,10 +53,35 @@ class ConversationSession {
     this.subject,
     this.lastMessage,
     this.resolved = false,
+    this.resolvedAt,
     this.messageCount = 0,
     this.createdAt,
     this.updatedAt,
   });
+
+  ConversationSession copyWith({
+    String? id,
+    String? type,
+    String? subject,
+    String? lastMessage,
+    bool? resolved,
+    DateTime? resolvedAt,
+    int? messageCount,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+  }) {
+    return ConversationSession(
+      id: id ?? this.id,
+      type: type ?? this.type,
+      subject: subject ?? this.subject,
+      lastMessage: lastMessage ?? this.lastMessage,
+      resolved: resolved ?? this.resolved,
+      resolvedAt: resolvedAt ?? this.resolvedAt,
+      messageCount: messageCount ?? this.messageCount,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+    );
+  }
 
   factory ConversationSession.fromJson(Map<String, dynamic> json) {
     return ConversationSession(
@@ -56,6 +90,9 @@ class ConversationSession {
       subject: json['subject'],
       lastMessage: json['last_message'],
       resolved: json['resolved'] ?? false,
+      resolvedAt: json['resolved_at'] != null
+          ? DateTime.tryParse(json['resolved_at'])
+          : null,
       messageCount: json['message_count'] ?? 0,
       createdAt: json['created_at'] != null
           ? DateTime.tryParse(json['created_at'])
@@ -73,6 +110,7 @@ class ConversationSession {
       'subject': subject,
       'last_message': lastMessage,
       'resolved': resolved,
+      'resolved_at': resolvedAt?.toIso8601String(),
       'message_count': messageCount,
       'created_at': createdAt?.toIso8601String(),
       'updated_at': updatedAt?.toIso8601String(),

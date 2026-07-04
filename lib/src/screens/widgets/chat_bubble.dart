@@ -1,7 +1,9 @@
 import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/svg.dart';
 import 'package:provider/provider.dart';
+import 'package:swift_agents/src/constants/colors.dart';
 import 'package:swift_agents/src/constants/fonts.dart';
 import 'package:swift_agents/src/constants/variables.dart';
 import 'package:swift_agents/src/controllers/sdk_provider.dart';
@@ -9,10 +11,14 @@ import 'package:swift_agents/src/models/msg_model.dart';
 import 'package:swift_agents/src/models/upload_attachments_response.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:markdown/markdown.dart' as md;
+import 'package:swift_agents/src/utils/file_util.dart';
+import 'package:swift_agents/src/utils/utils.dart';
 import '../../../swift_agents.dart';
 import 'get_cached_image.dart';
 
-enum BubbleRole { user, agent, system }
+enum BubbleRole { user, assistant, system, inbound, outbound, error }
+
+enum AuthorType { user, ai, agent }
 
 class ChatBubble extends StatefulWidget {
   final MsgModel message;
@@ -49,12 +55,12 @@ class _ChatBubbleState extends State<ChatBubble> {
     final sdkProvider = Provider.of<SdkProvider>(context, listen: false);
     final msg = widget.message;
     final lastMsg = sdkProvider.messages.last;
-    final isStreaming = sdkProvider.isCurrentMsgSending;
+    final isStreaming = sdkProvider.showCurrentMsgTyping;
 
     final isLast = lastMsg == msg;
 
     // Only animate if the role is Agent
-    if ((msg.role == BubbleRole.agent) && isLast && isStreaming) {
+    if ((msg.role == BubbleRole.assistant) && isLast && isStreaming) {
       _displayedText = "";
       _currentIndex = 0;
       _startTyping();
@@ -199,12 +205,12 @@ class _ChatBubbleState extends State<ChatBubble> {
     double height = 140,
     double width = 168,
   }) {
-    double extFontSize = max((0.505 * width), 20);
-    final extText = attachment.getFileExtension?.toUpperCase();
+    final extText = attachment.filename ?? '';
+    double extFontSize = extText.length > 3 ?  12: max((0.505 * width), 20);
     final deco = BoxDecoration(
       color: attachment.isImage
           ? Color(0xFF3a3a3a)
-          : getFileColor(extText ?? ''),
+          : getFileColor(attachment.getFileExtension ?? ''),
       borderRadius: BorderRadius.circular(22),
     );
 
@@ -224,15 +230,17 @@ class _ChatBubbleState extends State<ChatBubble> {
             height: height,
             decoration: deco,
             alignment: Alignment.center,
+            padding: const EdgeInsets.all(3.0),
             child: Text(
-              extText ?? attachment.filename ?? '',
+              FileUtils.getFileNameFromSignature(extText).toUpperCase(),
+              overflow: TextOverflow.ellipsis,
               style: TextStyle(
                 color: Colors.white,
                 fontSize: extFontSize,
                 fontWeight: FontWeight.w700,
                 letterSpacing: 0.7,
-                // fontFamily: Fonts.greedNarrow,
-                // package: Variables.sdkName,
+                fontFamily: Fonts.greedNarrow,
+                package: Variables.sdkName,
               ),
             ),
           );
@@ -247,9 +255,13 @@ class _ChatBubbleState extends State<ChatBubble> {
   @override
   Widget build(BuildContext context) {
     final t = SwiftAgentsTheme.of(context);
+    final sdkProvider = Provider.of<SdkProvider>(context);
+    final initSessionResponse = sdkProvider.initSessionResponse;
+    final company = initSessionResponse?.company;
     final msg = widget.message;
     final attachments = msg.attachments ?? [];
     final aLength = attachments.length;
+    final utils = Utils();
 
     if (msg.role == BubbleRole.system) {
       return Align(
@@ -269,7 +281,14 @@ class _ChatBubbleState extends State<ChatBubble> {
       );
     }
 
-    final isUser = msg.role == BubbleRole.user;
+    final isUser =
+        msg.role == BubbleRole.user ||
+        (msg.role == BubbleRole.inbound && msg.authorType == AuthorType.user);
+    final isHumanAgent =
+        msg.avatarUrl != null &&
+        msg.authorName != null &&
+        !isUser &&
+        msg.authorType == AuthorType.agent;
     return Align(
       alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
       child: Column(
@@ -278,7 +297,57 @@ class _ChatBubbleState extends State<ChatBubble> {
             ? CrossAxisAlignment.end
             : CrossAxisAlignment.start,
         children: [
-          if (aLength > 0) SizedBox(height: 20),
+          SizedBox(height: aLength > 0 ? 16 : 14),
+          // Human agent profile
+          if (isHumanAgent)
+            Row(
+              mainAxisAlignment: MainAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 30,
+                  height: 30,
+                  decoration: BoxDecoration(shape: BoxShape.circle),
+                  clipBehavior: Clip.hardEdge,
+                  child: GetCachedImage(
+                    url: msg.avatarUrl,
+                    width: 30.5,
+                    height: 30.5,
+                  ),
+                ),
+                SizedBox(width: 8),
+                Text(
+                  msg.authorName ?? 'Agent',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: t.foreground,
+                    fontFamily: Fonts.stoizi,
+                    package: Variables.sdkName,
+                  ),
+                ),
+                SizedBox(width: 4),
+                Container(
+                  width: 17.69,
+                  height: 17.21,
+                  color: kLibPurple,
+                  alignment: Alignment.center,
+                  child: GetCachedImage(
+                    url: company?.logoUrl,
+                    placeholder: Text(
+                      'LOGO',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 8,
+                        fontWeight: FontWeight.w700,
+                        fontFamily: Fonts.greedNarrow,
+                        package: Variables.sdkName,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          // Attachment Images
           if (aLength == 1)
             Padding(
               padding: const EdgeInsets.only(right: 8.0),
@@ -306,101 +375,197 @@ class _ChatBubbleState extends State<ChatBubble> {
                     .toList(),
               ),
             ),
-          Container(
-            margin: EdgeInsets.only(top: aLength > 0 ? 16 : 25, bottom: 5),
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            constraints: BoxConstraints(
-              maxWidth: MediaQuery.of(context).size.width * 0.78,
-            ),
-            decoration: BoxDecoration(
-              color: isUser ? t.userBubble : t.agentBubble,
-              borderRadius: const BorderRadius.all(Radius.circular(20)),
-            ),
-            child: MarkdownBody(
-              data: _displayedText,
-              selectable: true,
-              extensionSet: md.ExtensionSet.gitHubFlavored,
-              shrinkWrap: true,
-              softLineBreak: true,
-              styleSheet: MarkdownStyleSheet(
-                p: TextStyle(
-                  color: isUser ? Colors.white : t.userBubble,
-                  fontSize: 14,
-                  height: 1.35,
-                  fontFamily: Fonts.stoizi,
-                  fontWeight: FontWeight.w400,
-                  package: Variables.sdkName,
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Agent Profile
+              Visibility(
+                visible: !isHumanAgent && !isUser,
+                child: Container(
+                  width: 30.5,
+                  height: 30.5,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Colors.grey[200],
+                  ),
+                  clipBehavior: Clip.hardEdge,
+                  child: GetCachedImage(
+                    url: company?.logoUrl,
+                    width: 32,
+                    height: 32,
+                  ),
                 ),
-
-                h1: TextStyle(
-                  color: isUser ? Colors.white : t.userBubble,
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  fontFamily: Fonts.stoizi,
-                  package: Variables.sdkName,
+              ),
+              // Txt Bubble
+              Container(
+                margin: EdgeInsets.only(
+                  top: 14,
+                  bottom: 5,
+                  left: isHumanAgent && !isUser ? 40 : 14,
                 ),
-
-                h2: TextStyle(
-                  color: isUser ? Colors.white : t.userBubble,
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  fontFamily: Fonts.stoizi,
-                  package: Variables.sdkName,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
                 ),
-
-                h3: TextStyle(
-                  color: isUser ? Colors.white : t.userBubble,
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  fontFamily: Fonts.stoizi,
-                  package: Variables.sdkName,
+                constraints: BoxConstraints(
+                  maxWidth:
+                      MediaQuery.of(context).size.width *
+                      (isUser ? 0.78 : 0.75),
                 ),
-
-                strong: TextStyle(
-                  color: isUser ? Colors.white : t.userBubble,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
-                  fontFamily: Fonts.stoizi,
-                  package: Variables.sdkName,
+                decoration: BoxDecoration(
+                  color: isUser ? t.userBubble : t.agentBubble,
+                  borderRadius: const BorderRadius.all(Radius.circular(20)),
                 ),
+                child: isUser
+                    ? Text(
+                        _displayedText,
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 14,
+                          height: 1.35,
+                          fontFamily: Fonts.stoizi,
+                          fontWeight: FontWeight.w400,
+                          package: Variables.sdkName,
+                        ),
+                      )
+                    : MarkdownBody(
+                        data: _displayedText,
+                        selectable: true,
+                        extensionSet: md.ExtensionSet.gitHubFlavored,
+                        shrinkWrap: true,
+                        softLineBreak: true,
+                        styleSheet: MarkdownStyleSheet(
+                          p: TextStyle(
+                            color: isUser ? Colors.white : t.userBubble,
+                            fontSize: 14,
+                            height: 1.35,
+                            fontFamily: Fonts.stoizi,
+                            fontWeight: FontWeight.w400,
+                            package: Variables.sdkName,
+                          ),
 
-                em: TextStyle(
-                  color: isUser ? Colors.white : t.userBubble,
-                  fontSize: 14,
-                  fontStyle: FontStyle.italic,
-                  fontFamily: Fonts.stoizi,
-                  package: Variables.sdkName,
+                          h1: TextStyle(
+                            color: isUser ? Colors.white : t.userBubble,
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            fontFamily: Fonts.stoizi,
+                            package: Variables.sdkName,
+                          ),
+
+                          h2: TextStyle(
+                            color: isUser ? Colors.white : t.userBubble,
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            fontFamily: Fonts.stoizi,
+                            package: Variables.sdkName,
+                          ),
+
+                          h3: TextStyle(
+                            color: isUser ? Colors.white : t.userBubble,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            fontFamily: Fonts.stoizi,
+                            package: Variables.sdkName,
+                          ),
+
+                          strong: TextStyle(
+                            color: isUser ? Colors.white : t.userBubble,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                            fontFamily: Fonts.stoizi,
+                            package: Variables.sdkName,
+                          ),
+
+                          em: TextStyle(
+                            color: isUser ? Colors.white : t.userBubble,
+                            fontSize: 14,
+                            fontStyle: FontStyle.italic,
+                            fontFamily: Fonts.stoizi,
+                            package: Variables.sdkName,
+                          ),
+
+                          listBullet: TextStyle(
+                            color: isUser ? Colors.white : t.userBubble,
+                            fontSize: 14,
+                            fontFamily: Fonts.stoizi,
+                            package: Variables.sdkName,
+                          ),
+
+                          blockquote: TextStyle(
+                            color: isUser ? Colors.white : t.userBubble,
+                            fontSize: 14,
+                            height: 1.35,
+                            fontFamily: Fonts.stoizi,
+                            package: Variables.sdkName,
+                          ),
+
+                          code: TextStyle(
+                            color: isUser ? Colors.white : t.userBubble,
+                            fontSize: 13,
+                            fontFamily: Fonts.dmMono,
+                            package: Variables.sdkName,
+                          ),
+
+                          codeblockDecoration: BoxDecoration(
+                            color: Colors.black12,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                      ),
+              ),
+            ],
+          ),
+          if (msg.timestamp != null)
+            Align(
+              alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
+              child: Padding(
+                padding: EdgeInsets.only(
+                  left: !isUser ? 55 : 0,
+                  right: isUser ? 10 : 0,
                 ),
-
-                listBullet: TextStyle(
-                  color: isUser ? Colors.white : t.userBubble,
-                  fontSize: 14,
-                  fontFamily: Fonts.stoizi,
-                  package: Variables.sdkName,
-                ),
-
-                blockquote: TextStyle(
-                  color: isUser ? Colors.white : t.userBubble,
-                  fontSize: 14,
-                  height: 1.35,
-                  fontFamily: Fonts.stoizi,
-                  package: Variables.sdkName,
-                ),
-
-                code: TextStyle(
-                  color: isUser ? Colors.white : t.userBubble,
-                  fontSize: 13,
-                  fontFamily: Fonts.dmMono,
-                  package: Variables.sdkName,
-                ),
-
-                codeblockDecoration: BoxDecoration(
-                  color: Colors.black12,
-                  borderRadius: BorderRadius.circular(8),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (isUser && msg.isSent)
+                      Text(
+                        'Sent',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500,
+                          color: Color(0xFF72777A),
+                          fontFamily: Fonts.dmSans,
+                          package: Variables.sdkName,
+                        ),
+                      ),
+                    if (isUser && msg.isSent)
+                      Padding(
+                        padding: const EdgeInsets.only(left: 2, right: 3.0),
+                        child: SvgPicture.asset(
+                          'assets/svgs/double_tick.svg',
+                          width: 17,
+                          height: 17,
+                          colorFilter: ColorFilter.mode(
+                            Color(0xFF72777A),
+                            BlendMode.srcIn,
+                          ),
+                          package: Variables.sdkName,
+                        ),
+                      ),
+                    Text(
+                      utils.formatDateTime(msg.timestamp!),
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                        color: Color(0xFF72777A),
+                        fontFamily: Fonts.dmSans,
+                        package: Variables.sdkName,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
-          ),
         ],
       ),
     );

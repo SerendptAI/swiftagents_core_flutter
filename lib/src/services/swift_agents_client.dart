@@ -7,6 +7,7 @@ import 'package:swift_agents/src/constants/variables.dart';
 import 'package:swift_agents/src/models/conversation_details_response.dart';
 import 'package:swift_agents/src/models/init_session_response.dart';
 import 'package:swift_agents/src/models/msg_model.dart';
+import 'package:swift_agents/src/models/reopen_ticket_response.dart';
 import 'package:swift_agents/src/models/upload_attachments_response.dart';
 import 'package:swift_agents/src/screens/widgets/chat_bubble.dart';
 import 'package:swift_agents/src/swift_agents_core.dart';
@@ -175,13 +176,20 @@ class SwiftAgentsClient {
             final stage = dataMap['stage'];
 
             if (stage == 'done') {
+              String? msgId = dataMap['message_id'];
               final sessionData = dataMap['session'];
+              final session = ConversationSession.fromJson(sessionData);
               if (sessionData is Map<String, dynamic>) {
                 yield MsgModel(
+                  msgId,
                   '', // No visible content string needed
                   BubbleRole.system,
                   null,
-                  session: ConversationSession.fromJson(sessionData),
+                  session.updatedAt,
+                  session: session,
+                  authorName: null,
+                  avatarUrl: null,
+                  authorType: AuthorType.ai,
                 );
               }
               continue;
@@ -190,11 +198,21 @@ class SwiftAgentsClient {
             var msg = dataMap['message'];
             if (msg != null) {
               final isSystem = ["thinking", "chat_details"].contains(stage);
+              final isError = stage == "error";
 
               yield MsgModel(
-                msg.toString(),
-                isSystem ? BubbleRole.system : BubbleRole.agent,
                 null,
+                msg.toString(),
+                isError
+                    ? BubbleRole.error
+                    : isSystem
+                    ? BubbleRole.system
+                    : BubbleRole.assistant,
+                null,
+                null,
+                authorName: null,
+                avatarUrl: null,
+                authorType: AuthorType.ai,
               );
             }
           }
@@ -202,7 +220,16 @@ class SwiftAgentsClient {
       } catch (_) {
         // Fallback: If it isn't JSON, don't yield raw SSE text pollution unless it's pure content
         if (!trimmedLine.contains(':')) {
-          yield MsgModel(trimmedLine, BubbleRole.agent, null);
+          yield MsgModel(
+            null,
+            trimmedLine,
+            BubbleRole.assistant,
+            null,
+            null,
+            authorName: null,
+            avatarUrl: null,
+            authorType: AuthorType.ai,
+          );
         }
       }
     }
@@ -244,6 +271,24 @@ class SwiftAgentsClient {
     }
   }
 
+  Future<ReopenTicketResponse?> reopenTicket({
+    required String conversationId,
+  }) async {
+    try {
+      var response = await dio.post(
+        _sdkPath('/tickets/$conversationId/reopen'),
+      );
+
+      if (response.data == null) return null;
+
+      return ReopenTicketResponse.fromJson(response.data);
+    } catch (e, trace) {
+      // ERROR HANDLING
+      logError("Re-open Ticket Failed: $e", trace);
+      return null;
+    }
+  }
+
   void _handleError(dynamic error, StackTrace trace) {
     int statusCode = 0;
     String message = error.toString();
@@ -268,22 +313,6 @@ class SwiftAgentsClient {
     }
 
     logError(SwiftAgentsApiException(statusCode, message), trace);
-  }
-
-  Future<ConversationDetailsResponse?> reopenTicket({
-    required String conversationId,
-  }) async {
-    try {
-      var response = await dio.get(_sdkPath('tickets/$conversationId/reopen'));
-
-      if (response.data == null) return null;
-
-      return ConversationDetailsResponse.fromJson(response.data);
-    } catch (e, trace) {
-      // ERROR HANDLING
-      logError("Fetch Messages Failed: $e", trace);
-      return null;
-    }
   }
 }
 

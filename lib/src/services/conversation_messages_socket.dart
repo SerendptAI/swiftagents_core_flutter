@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'package:flutter/material.dart';
 import 'package:swift_agents/src/models/conversation_details_response.dart';
 import 'package:swift_agents/swift_agents.dart';
 
@@ -22,14 +23,53 @@ class ConversationMessagesSocket {
 
   ConversationMessagesSocket({required this.baseUrl});
 
+  void scheduleReconnect({
+    required int generation,
+    required String token,
+    required String conversationId,
+    void Function()? onConnect,
+    void Function()? onDisconnect,
+    void Function(dynamic error, [dynamic trace])? onError,
+    void Function(ConversationDetailsResponse? conversationMsgs)? onInit,
+    void Function(ConversationDetailsResponse? msg)? onUpdate,
+    void Function()? onReconnectFailed,
+  }) {
+    if (generation != _connectionGeneration) return;
+    if (_retryCount >= _maxRetries || !_shouldReconnect) {
+      if (_retryCount >= _maxRetries) {
+        onReconnectFailed?.call();
+      }
+      return;
+    }
+
+    _reconnectTimer?.cancel();
+
+    _reconnectTimer = Timer(_retryDelay, () {
+      if (!_shouldReconnect || generation != _connectionGeneration) {
+        return;
+      }
+      _retryCount++;
+      connect(
+        token,
+        conversationId,
+        onConnect: onConnect,
+        onDisconnect: onDisconnect,
+        onError: onError,
+        onInit: onInit,
+        onUpdate: onUpdate,
+        onReconnectFailed: onReconnectFailed,
+      );
+    });
+  }
+
   Future<void> connect(
     String token,
     String conversationId, {
     void Function()? onConnect,
     void Function()? onDisconnect,
-    void Function(dynamic error)? onError,
+    void Function(dynamic error, [dynamic trace])? onError,
     void Function(ConversationDetailsResponse? conversationMsgs)? onInit,
-    void Function(ConversationMessage? msg)? onUpdate,
+    void Function(ConversationDetailsResponse? msg)? onUpdate,
     void Function()? onReconnectFailed,
   }) async {
     // Prepare for a fresh connect: allow reconnects for this new session
@@ -63,42 +103,13 @@ class ConversationMessagesSocket {
 
       onConnect?.call();
 
-      void scheduleReconnect() {
-        if (generation != _connectionGeneration) return;
-        if (_retryCount >= _maxRetries || !_shouldReconnect) {
-          // Report on reconnect failed
-          if (_retryCount >= _maxRetries) {
-            onReconnectFailed?.call();
-          }
-          return;
-        }
-
-        _reconnectTimer?.cancel();
-
-        _reconnectTimer = Timer(_retryDelay, () {
-          if (!_shouldReconnect || generation != _connectionGeneration) {
-            return;
-          }
-          _retryCount++;
-          connect(
-            token,
-            conversationId,
-            onConnect: onConnect,
-            onDisconnect: onDisconnect,
-            onError: onError,
-            onInit: onInit,
-            onUpdate: onUpdate,
-            onReconnectFailed: onReconnectFailed,
-          );
-        });
-      }
-
       _socket!.listen(
         (message) {
           Map<String, dynamic> json;
           try {
             json = jsonDecode(message) as Map<String, dynamic>;
           } catch (e) {
+            print('ERROR MARKER 1');
             onError?.call(e);
             return;
           }
@@ -116,36 +127,73 @@ class ConversationMessagesSocket {
 
               case 'update':
                 onUpdate?.call(
-                  ConversationMessage.fromJson(
+                  ConversationDetailsResponse.fromJson(
                     json['data'] as Map<String, dynamic>,
                   ),
                 );
                 break;
 
               case 'error':
+                print('ERROR MARKER 2');
                 onError?.call(json['message'] ?? 'Unknown error');
                 break;
 
               default:
                 break;
             }
-          } catch (e) {
-            onError?.call(e);
+          } catch (e, trace) {
+            print('ERROR MARKER 3');
+            onError?.call(e, trace);
           }
         },
         onDone: () {
           onDisconnect?.call();
-          scheduleReconnect();
+          scheduleReconnect(
+            generation: generation,
+            token: token,
+            conversationId: conversationId,
+            onConnect: onConnect,
+            onDisconnect: onDisconnect,
+            onError: onError,
+            onInit: onInit,
+            onUpdate: onUpdate,
+            onReconnectFailed: onReconnectFailed,
+          );
         },
         onError: (error) {
           onError?.call(error);
-          scheduleReconnect();
+          print('ERROR MARKER 4');
+          scheduleReconnect(
+            generation: generation,
+            token: token,
+            conversationId: conversationId,
+            onConnect: onConnect,
+            onDisconnect: onDisconnect,
+            onError: onError,
+            onInit: onInit,
+            onUpdate: onUpdate,
+            onReconnectFailed: onReconnectFailed,
+          );
         },
         cancelOnError: true,
       );
     } catch (e) {
+      print('ERROR MARKER 5a');
+
       if (generation == _connectionGeneration) {
+        print('ERROR MARKER 5b');
         onError?.call(e);
+        scheduleReconnect(
+          generation: generation,
+          token: token,
+          conversationId: conversationId,
+          onConnect: onConnect,
+          onDisconnect: onDisconnect,
+          onError: onError,
+          onInit: onInit,
+          onUpdate: onUpdate,
+          onReconnectFailed: onReconnectFailed,
+        );
       }
     }
   }

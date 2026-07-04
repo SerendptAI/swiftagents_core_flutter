@@ -9,12 +9,14 @@ class MessagesScreen extends StatefulWidget {
   final List<MsgModel> messages;
   final VoidCallback? onClose;
   final VoidCallback? onMenuTap;
+  final double lastMsgBottomPadding;
 
   const MessagesScreen({
     super.key,
     this.onClose,
     this.onMenuTap,
     this.messages = const [],
+    this.lastMsgBottomPadding = 0,
   });
 
   @override
@@ -42,6 +44,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
                   alignment: Alignment.centerLeft,
                   child: ChatBubbleLoading(),
                 ),
+              if (widget.messages.last == m) SizedBox(height: widget.lastMsgBottomPadding),
             ],
           );
         },
@@ -50,9 +53,9 @@ class _MessagesScreenState extends State<MessagesScreen> {
   }
 }
 
+
 // ***SCREEN-ONLY WIDGETs***
 // 1.
-
 class ChatBubbleLoading extends StatefulWidget {
   const ChatBubbleLoading({super.key});
 

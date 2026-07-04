@@ -1,7 +1,10 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:marqueer/marqueer.dart';
 import 'package:provider/provider.dart';
+import 'package:swift_agents/src/models/conversations_response.dart';
 import 'package:swift_agents/src/screens/widgets/animated_avatar_player.dart';
+import 'package:swift_agents/src/screens/widgets/button_filled.dart';
 import 'package:swift_agents/src/screens/widgets/chat_input.dart';
 import 'package:swift_agents/src/screens/widgets/top_bar.dart';
 import '../../swift_agents.dart';
@@ -28,7 +31,10 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _onSubmit(String text) {
     final sdkProvider = context.read<SdkProvider>();
-    final isOnline = Provider.of<OnlineProvider>(context, listen: false).isOnline;
+    final isOnline = Provider.of<OnlineProvider>(
+      context,
+      listen: false,
+    ).isOnline;
 
     final sessionId = sdkProvider.currentSessionId;
 
@@ -51,7 +57,6 @@ class _HomeScreenState extends State<HomeScreen> {
         await sdkProvider.uploadAttachments(files: sFiles);
       }
     });
-
   }
 
   void _onRemove(UploadFile removedFile) {
@@ -62,28 +67,43 @@ class _HomeScreenState extends State<HomeScreen> {
     sdkProvider.removeUploadedAttachment(file: removedFile);
   }
 
-
   @override
   Widget build(BuildContext context) {
     final sdkProvider = Provider.of<SdkProvider>(context);
     final activeMessages = sdkProvider.messages;
     var selectedIndex = sdkProvider.selectedConversationIndex;
+    var conversation = sdkProvider.selectedConversation;
+    final showReopenTicket =
+        conversation?.type == "ticket" && conversation?.resolved == true;
 
-    return Column(
+    return Stack(
       children: [
-        TopBar(onMenuTap: widget.onMenuTap, onClose: widget.onClose),
-        activeMessages.isEmpty && (selectedIndex == null)
-            ? NoMsgWidget(onSuggest: _onSubmit)
-            : MessagesScreen(
-                messages: activeMessages,
-                onClose: widget.onClose,
-                onMenuTap: widget.onMenuTap,
+        Column(
+          children: [
+            TopBar(onMenuTap: widget.onMenuTap, onClose: widget.onClose),
+            activeMessages.isEmpty && (selectedIndex == null)
+                ? NoMsgWidget(onSuggest: _onSubmit)
+                : MessagesScreen(
+                    messages: activeMessages,
+                    onClose: widget.onClose,
+                    onMenuTap: widget.onMenuTap,
+                    lastMsgBottomPadding: showReopenTicket ? 95 : 0,
+                  ),
+            Opacity(
+              opacity: showReopenTicket ? 0.25 : 1,
+              child: IgnorePointer(
+                ignoring: showReopenTicket,
+                child: ChatInput(
+                  onSubmit: _onSubmit,
+                  onAttach: _onUpload,
+                  onRemove: _onRemove,
+                ),
               ),
-        ChatInput(
-          onSubmit: _onSubmit,
-          onAttach: _onUpload,
-          onRemove: _onRemove,
+            ),
+          ],
         ),
+        if (showReopenTicket)
+          Align(alignment: Alignment.bottomCenter, child: ReopenTicket()),
       ],
     );
   }
@@ -139,13 +159,12 @@ class NoMsgWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final sdkProvider =  Provider.of<SdkProvider>(context);
+    final sdkProvider = Provider.of<SdkProvider>(context);
     final t = SwiftAgentsTheme.of(context);
-    
+
     final company = sdkProvider.initSessionResponse?.company;
     final suggestions = company?.suggestedAIPrompts ?? [];
     final enableSuggestions = company?.enableSuggestedPrompts ?? false;
-
 
     final firstSLength = suggestions.isEmpty
         ? 0
@@ -232,6 +251,133 @@ class NoMsgWidget extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+// 3.
+
+class ReopenTicket extends StatefulWidget {
+  const ReopenTicket({super.key});
+
+  @override
+  State<ReopenTicket> createState() => _ReopenTicketState();
+}
+
+class _ReopenTicketState extends State<ReopenTicket> {
+  Timer? _timer;
+  String _countdown = '';
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+
+    final sdkProvider = Provider.of<SdkProvider>(context, listen: false);
+    final resolvedAt =
+        sdkProvider.selectedConversation?.resolvedAt ??
+        sdkProvider.selectedConversation?.updatedAt;
+
+    if (resolvedAt != null && _timer == null) {
+      _startCountdown(resolvedAt);
+    }
+  }
+
+  void _startCountdown(DateTime updatedAt) {
+    final updatedTime = updatedAt.toLocal();
+
+    _updateCountdown(updatedTime);
+
+    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
+      _updateCountdown(updatedTime);
+    });
+  }
+
+  void _updateCountdown(DateTime updatedTime) {
+    final expiryTime = updatedTime.add(const Duration(hours: 48));
+
+    final remaining = expiryTime.difference(DateTime.now());
+
+    if (remaining.isNegative) {
+      _timer?.cancel();
+
+      if (mounted) {
+        setState(() {
+          _countdown = 'EXPIRED';
+        });
+      }
+      return;
+    }
+
+    final hours = remaining.inHours;
+    final minutes = remaining.inMinutes % 60;
+    final seconds = remaining.inSeconds % 60;
+
+    if (mounted) {
+      setState(() {
+        if (hours > 0) {
+          _countdown = '${hours}HR ${minutes}M';
+        } else if (minutes > 0) {
+          _countdown = '${minutes}M ${seconds}S';
+        } else {
+          _countdown = '${seconds}S';
+        }
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = SwiftAgentsTheme.of(context);
+    final sdkProvider = Provider.of<SdkProvider>(context);
+    final conversation = sdkProvider.selectedConversation;
+
+    final expired = _countdown == 'EXPIRED';
+
+    return Container(
+      width: 307,
+      padding: const EdgeInsets.all(22),
+      margin: const EdgeInsets.only(bottom: 25),
+      decoration: BoxDecoration(
+        color: t.agentBubble,
+        borderRadius: BorderRadius.circular(17),
+        border: Border.all(width: 1, color: t.userBubble.withAlpha(25)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Text(
+            'This chat has been closed as the ticket is resolved. Would you like to reopen it for further assistance?',
+            style: TextStyle(
+              fontSize: 13.5,
+              height: 1.85,
+              fontFamily: Fonts.stoizi,
+              package: Variables.sdkName,
+            ),
+          ),
+          const SizedBox(height: 15),
+          ButtonFilled(
+            onPressed: () {
+              final convoId = conversation?.id;
+              if (convoId != null && !expired) {
+                sdkProvider.reOpenTicket(conversationId: convoId);
+              }
+            },
+            isLoading: sdkProvider.isCurrentReopenTicketsLoading,
+            boxShadows: null,
+            margin: EdgeInsets.zero,
+            backgroundColor: expired ? Colors.grey[700] : Color(0xFF03A84E),
+            text: expired
+                ? 'REOPEN WINDOW EXPIRED'
+                : 'REOPEN TICKET? ($_countdown)',
+          ),
+        ],
       ),
     );
   }

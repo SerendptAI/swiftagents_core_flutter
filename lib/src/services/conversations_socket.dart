@@ -21,14 +21,50 @@ class ConversationsSocket {
   int _connectionGeneration = 0;
   ConversationsSocket({required this.baseUrl});
 
-  Future<void> connect(
-    String token,
-    String conversationId, {
+  void scheduleReconnect({
+    required int generation,
+    required String token,
     void Function()? onConnect,
     void Function()? onDisconnect,
-    void Function(dynamic error)? onError,
+    void Function(dynamic error, [dynamic trace])? onError,
     void Function(ConversationsResponse? conversations)? onInit,
-    void Function(ConversationSession? conversation)? onUpdate,
+    void Function(ConversationsResponse? conversation)? onUpdate,
+    void Function()? onReconnectFailed,
+  }) {
+    if (generation != _connectionGeneration) return;
+    if (_retryCount >= _maxRetries || !_shouldReconnect) {
+      if (_retryCount >= _maxRetries) {
+        onReconnectFailed?.call();
+      }
+      return;
+    }
+
+    _reconnectTimer?.cancel();
+
+    _reconnectTimer = Timer(_retryDelay, () {
+      if (!_shouldReconnect || generation != _connectionGeneration) {
+        return;
+      }
+      _retryCount++;
+      connect(
+        token,
+        onConnect: onConnect,
+        onDisconnect: onDisconnect,
+        onError: onError,
+        onInit: onInit,
+        onUpdate: onUpdate,
+        onReconnectFailed: onReconnectFailed,
+      );
+    });
+  }
+
+  Future<void> connect(
+    String token, {
+    void Function()? onConnect,
+    void Function()? onDisconnect,
+    void Function(dynamic error, [dynamic trace])? onError,
+    void Function(ConversationsResponse? conversations)? onInit,
+    void Function(ConversationsResponse? conversation)? onUpdate,
     void Function()? onReconnectFailed,
   }) async {
     // Prepare for a fresh connect: allow reconnects for this new session
@@ -41,8 +77,7 @@ class ConversationsSocket {
     try {
       final companyId = SwiftAgentsCore.companyId;
 
-      final url =
-          '$baseUrl/sdk/$companyId/conversations/ws?token=$token';
+      final url = '$baseUrl/sdk/$companyId/conversations/ws?token=$token';
 
       final socket = await WebSocket.connect(url);
 
@@ -61,36 +96,6 @@ class ConversationsSocket {
       _reconnectTimer?.cancel();
 
       onConnect?.call();
-
-      void scheduleReconnect() {
-        if (generation != _connectionGeneration) return;
-        if (_retryCount >= _maxRetries || !_shouldReconnect) {
-          // Report on reconnect failed
-          if (_retryCount >= _maxRetries) {
-            onReconnectFailed?.call();
-          }
-          return;
-        }
-
-        _reconnectTimer?.cancel();
-
-        _reconnectTimer = Timer(_retryDelay, () {
-          if (!_shouldReconnect || generation != _connectionGeneration) {
-            return;
-          }
-          _retryCount++;
-          connect(
-            token,
-            conversationId,
-            onConnect: onConnect,
-            onDisconnect: onDisconnect,
-            onError: onError,
-            onInit: onInit,
-            onUpdate: onUpdate,
-            onReconnectFailed: onReconnectFailed,
-          );
-        });
-      }
 
       _socket!.listen(
         (message) {
@@ -115,7 +120,7 @@ class ConversationsSocket {
 
               case 'update':
                 onUpdate?.call(
-                  ConversationSession.fromJson(
+                  ConversationsResponse.fromJson(
                     json['data'] as Map<String, dynamic>,
                   ),
                 );
@@ -128,23 +133,51 @@ class ConversationsSocket {
               default:
                 break;
             }
-          } catch (e) {
-            onError?.call(e);
+          } catch (e, trace) {
+            onError?.call(e, trace);
           }
         },
         onDone: () {
           onDisconnect?.call();
-          scheduleReconnect();
+          scheduleReconnect(
+            generation: generation,
+            token: token,
+            onConnect: onConnect,
+            onDisconnect: onDisconnect,
+            onError: onError,
+            onInit: onInit,
+            onUpdate: onUpdate,
+            onReconnectFailed: onReconnectFailed,
+          );
         },
         onError: (error) {
           onError?.call(error);
-          scheduleReconnect();
+          scheduleReconnect(
+            generation: generation,
+            token: token,
+            onConnect: onConnect,
+            onDisconnect: onDisconnect,
+            onError: onError,
+            onInit: onInit,
+            onUpdate: onUpdate,
+            onReconnectFailed: onReconnectFailed,
+          );
         },
         cancelOnError: true,
       );
-    } catch (e) {
+    } catch (e, trace) {
       if (generation == _connectionGeneration) {
-        onError?.call(e);
+        onError?.call(e, trace);
+        scheduleReconnect(
+          generation: generation,
+          token: token,
+          onConnect: onConnect,
+          onDisconnect: onDisconnect,
+          onError: onError,
+          onInit: onInit,
+          onUpdate: onUpdate,
+          onReconnectFailed: onReconnectFailed,
+        );
       }
     }
   }
