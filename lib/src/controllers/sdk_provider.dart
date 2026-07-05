@@ -5,7 +5,6 @@ import 'package:swift_agents/src/constants/variables.dart';
 import 'package:swift_agents/src/models/conversations_response.dart';
 import 'package:swift_agents/src/models/reopen_ticket_response.dart';
 import 'package:swift_agents/src/models/upload_attachments_response.dart';
-import 'package:swift_agents/src/screens/home_screen.dart';
 import 'package:swift_agents/src/services/conversation_messages_socket.dart';
 import 'package:swift_agents/src/services/conversations_socket.dart';
 import 'package:swift_agents/src/services/interceptors/api_logger_interceptor.dart';
@@ -380,8 +379,9 @@ class SdkProvider with ChangeNotifier {
 
   /// 3. Gets Conversations List
   Future<ConversationsResponse?> getConversations({
+    /// This is used to refresh the conversations list, and fetch the first page of conversations.
+    /// only call this when the user is online, to avoid unnecessary API Error.
     bool refresh = false,
-
     /// This checks if Conversations has been fetched atleast once
     bool checkConversationsLoaded = false,
   }) async {
@@ -410,6 +410,14 @@ class SdkProvider with ChangeNotifier {
         if (refresh) {
           // Non-Pagnated (refreshed)
           _conversationsList = response.items ?? [];
+          if (_conversationsList.isEmpty){
+            // create new chat if no conversations exist, to avoid empty screen.
+            createNewChat(enableMsgSocket: true);
+          }
+          else if (((_selectedConversationIndex ??0) + 1) > _conversationsList.length) {
+            // If the selected index is out of bounds, open the first conversation.
+            openChat(_conversationsList[0].id!, 0);
+          } 
         } else {
           // Paganated
           final fetchedItems = response.items ?? [];

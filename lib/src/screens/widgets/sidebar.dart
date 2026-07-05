@@ -118,7 +118,8 @@ class _SidebarWidgetState extends State<SidebarWidget> {
                 });
               },
               onRefresh: () async {
-                await sdkProvider.getConversations(refresh: true);
+                final isOnline = onlineProvider?.isOnline ?? false;
+                if (isOnline) await sdkProvider.getConversations(refresh: true);
               },
               refreshBuilder: (context, onRefresh, child) {
                 return RefreshIndicator(
