@@ -52,13 +52,23 @@ class Utils {
         date.year == now.year && date.month == now.month && date.day == now.day;
 
     if (isToday) {
-      return time;
+      return '$time Today';
     }
 
     final difference = now.difference(date).inDays;
 
     if (difference < 7) {
-      return '$time Today';
+      final dayOftheWeek = switch (date.weekday) {
+        <= 1 => "Mon",
+        <= 2 => "Tue",
+        <= 3 => "Wed",
+        <= 4 => "Thurs",
+        <= 5 => "Fri",
+        <= 6 => "Sat",
+        <= 7 => "Sun",
+        _ => "",
+      };
+      return '$time $dayOftheWeek';
     }
 
     return '$time ${DateFormat('M/d/yy').format(date)}';

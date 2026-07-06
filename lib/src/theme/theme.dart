@@ -8,6 +8,7 @@ class SwiftAgentsThemeData {
   final Color foreground;
   final Color muted;
   final Color border;
+  final Widget? avatar;
 
   const SwiftAgentsThemeData({
     this.sidebarBg = const Color(0xFF8AA0FF),
@@ -17,6 +18,7 @@ class SwiftAgentsThemeData {
     this.foreground = const Color(0xFF000000),
     this.muted = const Color(0xFF6B7280),
     this.border = const Color(0x0F000000),
+    this.avatar,
   });
 
   factory SwiftAgentsThemeData.dark() {

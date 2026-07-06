@@ -178,7 +178,7 @@ class NoMsgWidget extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               const SizedBox(height: 32),
-              AnimatedAvatarPlayer(),
+              t.avatar ?? AnimatedAvatarPlayer(),
               const SizedBox(height: 15),
               ConstrainedBox(
                 constraints: BoxConstraints(maxWidth: 285),
