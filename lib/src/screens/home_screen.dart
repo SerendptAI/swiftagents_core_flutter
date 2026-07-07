@@ -73,7 +73,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final activeMessages = sdkProvider.messages;
     var selectedIndex = sdkProvider.selectedConversationIndex;
     var conversation = sdkProvider.selectedConversation;
-    final showReopenTicket =
+    var showReopenTicket =
         conversation?.type == "ticket" && conversation?.resolved == true;
 
     return Stack(
@@ -89,10 +89,10 @@ class _HomeScreenState extends State<HomeScreen> {
                     onMenuTap: widget.onMenuTap,
                     lastMsgBottomPadding: showReopenTicket ? 95 : 0,
                   ),
-            Opacity(
-              opacity: showReopenTicket ? 0.25 : 1,
-              child: IgnorePointer(
-                ignoring: showReopenTicket,
+            IgnorePointer(
+              ignoring: showReopenTicket,
+              child: Opacity(
+                opacity: showReopenTicket ? 0.25 : 1,
                 child: ChatInput(
                   onSubmit: _onSubmit,
                   onAttach: _onUpload,

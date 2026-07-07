@@ -107,7 +107,7 @@ class SwiftAgentsCore {
         BaseOptions(
           baseUrl: Variables.apiBaseUrl,
           connectTimeout: Duration(seconds: 30),
-          receiveTimeout: Duration(seconds: 180),
+          receiveTimeout: Duration(seconds: 200),
           followRedirects: false,
         ),
       ),

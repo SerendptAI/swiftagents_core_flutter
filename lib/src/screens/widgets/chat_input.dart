@@ -35,9 +35,9 @@ class _ChatInputState extends State<ChatInput> {
   final List<UploadFile> _selectedFiles = [];
 
   OverlayEntry? _attachmentOverlay;
+  StreamSubscription<bool>? _onlineSubscription;
   final GlobalKey _attachKey = GlobalKey();
   final FileUtils _fileUtils = FileUtils();
-  final _focusNode = FocusNode();
   final _controller = TextEditingController();
 
   void _addFiles(List<UploadFile> files) async {
@@ -115,16 +115,17 @@ class _ChatInputState extends State<ChatInput> {
     widget.onSubmit?.call(text);
     _selectedFiles.clear();
     _controller.clear();
+    _tempTxt = '';
   }
 
   void checkInternetConnection() {
     final onlineProvider = Provider.of<OnlineProvider>(context, listen: false);
     isOnline = onlineProvider.isOnline;
-    onlineProvider.onlineStream.listen((bool _isOnline) async {
-  
-        setState(() {
-          isOnline = _isOnline;
-        });
+    _onlineSubscription = onlineProvider.onlineStream.listen((bool _isOnline) {
+      if (!mounted) return;
+      setState(() {
+        isOnline = _isOnline;
+      });
     });
   }
 
@@ -140,8 +141,11 @@ class _ChatInputState extends State<ChatInput> {
 
   @override
   void dispose() {
+    _onlineSubscription?.cancel();
+    _attachmentOverlay?.remove();
+    _attachmentOverlay = null;
     _controller.dispose();
-    _focusNode.dispose();
+    // _focusNode.dispose();
     super.dispose();
   }
 
@@ -289,7 +293,7 @@ class _ChatInputState extends State<ChatInput> {
               TextField(
                 minLines: 1,
                 maxLines: 4,
-                focusNode: _focusNode,
+                // focusNode: _focusNode,
                 controller: _controller,
                 onSubmitted: (_) => _send(),
                 onChanged: (_) {

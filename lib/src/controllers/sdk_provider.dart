@@ -185,6 +185,26 @@ class SdkProvider with ChangeNotifier {
     );
   }
 
+  /// 5. Updates a particular conversation based on details from getConversationMessages
+  void updateConversationFromMsgesDetail(ConversationDetailsResponse details){
+    // Update conversations list
+    if (details.updatedAt != null) {
+      final updatedConvoIndex = _conversationsList.indexWhere(
+            (c) => details.id == c.id,
+      );
+
+      if (updatedConvoIndex != -1) {
+        _conversationsList[updatedConvoIndex] = _conversationsList[updatedConvoIndex].copyWith(
+          updatedAt: details.updatedAt,
+          resolved: details.resolved,
+          resolvedAt: details.resolvedAt,
+          type: details.type,
+          subject: details.subject,
+        );
+      }
+    }
+  }
+
   // API ViewModels Methods
   /// 1. Create session for user
   Future<InitSessionResponse?> initiateSession({bool refresh = false}) async {
@@ -369,7 +389,7 @@ class SdkProvider with ChangeNotifier {
       _showMsgLoading[sessionId] = false;
       notifyListeners();
 
-      Future.delayed(const Duration(milliseconds: 800), () {
+      Future.delayed(const Duration(milliseconds: 300), () {
         _showMsgTyping[sessionId] = false;
         notifyListeners();
       });
@@ -475,6 +495,7 @@ class SdkProvider with ChangeNotifier {
         }).toList();
 
         _chatSessions[details.id] = formattedMsgs;
+        updateConversationFromMsgesDetail(details);
       }
 
       return details;
@@ -602,6 +623,7 @@ class SdkProvider with ChangeNotifier {
         logDebug('USER(${client.email}) MSG SOCKET CONNECTED');
 
         if (details != null) {
+          // Update messages
           final formattedMsgs = details.messages.map((msg) {
             return MsgModel(
               msg.id,
@@ -614,8 +636,10 @@ class SdkProvider with ChangeNotifier {
               authorType: msg.authorType,
             );
           }).toList();
-
           _chatSessions[details.id] = formattedMsgs;
+
+          updateConversationFromMsgesDetail(details);
+
           notifyListeners();
         }
       },
@@ -623,53 +647,7 @@ class SdkProvider with ChangeNotifier {
         _getConversionMsgesSockLoading[conversationId] = false;
         notifyListeners();
         logDebug('USER(${client.email}) MSG SOCKET UPDATED: ${msgs?.toJson()}');
-
         mergeMessagesUpdate(msgs);
-
-        // If msg updates starts arriving individually use this
-        // if (msg != null) {
-        //   final role = msg.role == 'user' ? BubbleRole.user : BubbleRole.agent;
-        //   String msgId = msg.id ?? '';
-        //   final chatMsgs = _chatSessions[conversationId];
-
-        //   if (msgId.isEmpty) {
-        //     _chatSessions[conversationId]?.add(
-        //       MsgModel(
-        //         msg.id,
-        //         msg.content ?? '',
-        //         role,
-        //         msg.attachments,
-        //         msg.timestamp,
-        //         authorName: msg.authorName,
-        //         avatarUrl: msg.avatarUrl,
-        //       ),
-        //     );
-        //   } else {
-        //     // Get index of existing msg, if any.
-        //     final updatedMsgIndex = (chatMsgs ?? []).indexWhere(
-        //       (cMsg) => cMsg.id == msg.id,
-        //     );
-
-        //     // Create msg instance
-        //     final newMsg = MsgModel(
-        //       msg.id,
-        //       msg.content ?? '',
-        //       role,
-        //       msg.attachments,
-        //       msg.timestamp,
-        //       authorName: msg.authorName,
-        //       avatarUrl: msg.avatarUrl,
-        //     );
-
-        //     // Update new msg
-        //     if (updatedMsgIndex == -1) {
-        //       _chatSessions[conversationId]?.add(newMsg);
-        //     } else {
-        //       _chatSessions[conversationId]?[updatedMsgIndex] = newMsg;
-        //     }
-        //   }
-        //   notifyListeners();
-        // }
       },
       onDisconnect: () {
         _getConversionMsgesSockLoading[conversationId] = false;
@@ -726,6 +704,7 @@ class SdkProvider with ChangeNotifier {
       } else {
         _chatSessions[details.id] = formattedMsgs;
       }
+      updateConversationFromMsgesDetail(details);
       notifyListeners();
     }
   }
@@ -751,10 +730,6 @@ class SdkProvider with ChangeNotifier {
         _isInitConversationsSockLoading = false;
         notifyListeners();
         logDebug('USER(${client.email}) CONVERSATIONS SOCKET CONNECTED');
-        // if (conversationsResponse != null){
-        // Do something...
-        //   notifyListeners();
-        // }
       },
       onUpdate: (ConversationsResponse? convosUpdate) {
         _isInitConversationsSockLoading = false;
@@ -801,6 +776,12 @@ class SdkProvider with ChangeNotifier {
         }
         _conversationsList.insert(0, convoUpdate);
       }
+
+
+      // Update the selected conversation's index, so that the selected conversation on the sidebar,
+      // matches the displayed conversation shown on the Messages screen on the right.
+      final newIndexOfTheCurrentConvo = conversationsList.indexWhere((convo) => convo.id == _currentSessionId);
+      if (newIndexOfTheCurrentConvo != -1) _selectedConversationIndex = newIndexOfTheCurrentConvo;
 
       notifyListeners();
     }
