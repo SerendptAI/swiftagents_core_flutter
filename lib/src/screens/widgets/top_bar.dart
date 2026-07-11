@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
-import 'package:swift_agents/src/constants/colors.dart';
-import 'package:swift_agents/src/constants/variables.dart';
-import 'package:swift_agents/src/screens/widgets/get_cached_image.dart';
-import '../../../swift_agents.dart';
+import 'package:swift_agents_core/src/constants/colors.dart';
+import 'package:swift_agents_core/src/constants/variables.dart';
+import 'package:swift_agents_core/src/screens/widgets/get_cached_image.dart';
+import '../../../swift_agents_core.dart';
 import '../../constants/fonts.dart';
 import '../../controllers/sdk_provider.dart';
 

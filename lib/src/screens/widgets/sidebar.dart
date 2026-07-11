@@ -3,11 +3,11 @@ import 'dart:async';
 import 'package:enhanced_paginated_view/enhanced_paginated_view.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:swift_agents/src/controllers/online_provider.dart';
-import 'package:swift_agents/src/controllers/sdk_provider.dart';
-import 'package:swift_agents/src/models/conversations_response.dart';
-import 'package:swift_agents/src/screens/widgets/custom_shimmer.dart';
-import '../../../swift_agents.dart';
+import 'package:swift_agents_core/src/controllers/online_provider.dart';
+import 'package:swift_agents_core/src/controllers/sdk_provider.dart';
+import 'package:swift_agents_core/src/models/conversations_response.dart';
+import 'package:swift_agents_core/src/screens/widgets/custom_shimmer.dart';
+import '../../../swift_agents_core.dart';
 import '../../constants/fonts.dart';
 import '../../constants/variables.dart';
 
@@ -52,9 +52,10 @@ class _SidebarWidgetState extends State<SidebarWidget> {
     final selectedIndex = sdkProvider.selectedConversationIndex;
 
     void _openChat(ConversationSession recent, int index) {
+      final isOnline = onlineProvider?.isOnline ?? false;
+
       if (recent.id != null) {
-        // sdkProvider.selectedConversationIndex = index;
-        sdkProvider.openChat(recent.id!, index);
+        sdkProvider.openChat(recent.id!, index, isOnline);
         widget.onClose?.call();
 
         _onlineSubscription?.cancel();
@@ -114,7 +115,8 @@ class _SidebarWidgetState extends State<SidebarWidget> {
               hasReachedMax: !hasNext,
               onLoadMore: (int page) {
                 WidgetsBinding.instance.addPostFrameCallback((_) {
-                  sdkProvider.getConversations();
+                  final isOnline = onlineProvider?.isOnline ?? false;
+                  if (isOnline) sdkProvider.getConversations();
                 });
               },
               onRefresh: () async {
@@ -246,8 +248,8 @@ class _NewChatState extends State<_NewChat> {
   bool isSelected = false;
   @override
   void initState() {
-    Future.delayed(Duration(milliseconds: 5), () {
-      setState(() => isSelected = true);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) setState(() => isSelected = true);
     });
     super.initState();
   }

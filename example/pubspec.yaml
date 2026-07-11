@@ -10,7 +10,7 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  swift_agents:
+  swift_agents_core:
     path: 'C:/Users/Hp/StudioProjects/swift_agents'
 
 dev_dependencies:

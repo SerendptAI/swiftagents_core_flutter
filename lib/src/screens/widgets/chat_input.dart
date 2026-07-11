@@ -3,9 +3,10 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:provider/provider.dart';
-import 'package:swift_agents/src/controllers/online_provider.dart';
-import 'package:swift_agents/src/controllers/sdk_provider.dart';
-import '../../../swift_agents.dart';
+import 'package:swift_agents_core/src/constants/colors.dart';
+import 'package:swift_agents_core/src/controllers/online_provider.dart';
+import 'package:swift_agents_core/src/controllers/sdk_provider.dart';
+import '../../../swift_agents_core.dart';
 import '../../constants/fonts.dart';
 import '../../constants/variables.dart';
 import '../../utils/file_util.dart';
@@ -307,7 +308,7 @@ class _ChatInputState extends State<ChatInput> {
                 decoration: InputDecoration(
                   hintText: widget.hintText,
                   hintStyle: TextStyle(
-                    color: t.muted,
+                    color: kMutedBlue,
                     fontSize: 14,
                     fontFamily: Fonts.stoizi,
                     package: Variables.sdkName,

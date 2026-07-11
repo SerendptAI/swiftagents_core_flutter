@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:swift_agents/src/controllers/sdk_provider.dart';
-import 'package:swift_agents/src/models/swift_agents_context.dart';
-import 'package:swift_agents/src/screens/widgets/sidebar.dart';
-import '../../swift_agents.dart';
+import 'package:swift_agents_core/src/controllers/sdk_provider.dart';
+import 'package:swift_agents_core/src/models/swift_agents_context.dart';
+import 'package:swift_agents_core/src/screens/widgets/sidebar.dart';
+import '../../swift_agents_core.dart';
 import '../controllers/online_provider.dart';
 import '../theme/theme.dart';
 import '../screens/home_screen.dart';
@@ -77,18 +77,20 @@ class _SwiftAgentsViewBodyState extends State<_SwiftAgentsViewBody>
     if (session != null) {
       sdkProvider.initConversationsSock();
       sdkProvider.getConversations(checkConversationsLoaded: true);
-      sdkProvider.initConversationMessagesSock(conversationId: sdkProvider.currentSessionId!);
+      sdkProvider.initConversationMessagesSock(
+        conversationId: sdkProvider.currentSessionId!,
+      );
     }
   }
 
   void checkInternetConnection() {
     onlineProvider = Provider.of<OnlineProvider>(context, listen: false);
     final sdkProvider = Provider.of<SdkProvider>(context, listen: false);
-    
+
     if (sdkProvider.messages.isEmpty) {
       sdkProvider.createNewChat(enableMsgSocket: false);
     }
-    
+
     if (onlineProvider?.isOnline ?? false) init();
 
     onlineProvider?.onlineStream.listen((bool isOnline) async {
@@ -182,7 +184,9 @@ class _SwiftAgentsViewBodyState extends State<_SwiftAgentsViewBody>
                           }),
                       onNewChat: () {
                         final sdkProvider = context.read<SdkProvider>();
-                        sdkProvider.createNewChat(enableMsgSocket: onlineProvider?.isOnline ?? false);
+                        sdkProvider.createNewChat(
+                          enableMsgSocket: onlineProvider?.isOnline ?? false,
+                        );
                         Future.delayed(Duration(microseconds: 800), () {
                           _animationController.reverse();
                         });

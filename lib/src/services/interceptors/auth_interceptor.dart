@@ -1,6 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
-import 'package:swift_agents/src/controllers/sdk_provider.dart';
+import 'package:swift_agents_core/src/controllers/sdk_provider.dart';
 
 class AuthInterceptor extends QueuedInterceptor {
   final Dio dio;
@@ -10,7 +10,10 @@ class AuthInterceptor extends QueuedInterceptor {
 
   // 1. BEFORE SENDING THE REQUEST
   @override
-  void onRequest(RequestOptions options, RequestInterceptorHandler handler) async {
+  void onRequest(
+    RequestOptions options,
+    RequestInterceptorHandler handler,
+  ) async {
     String? token = _getSavedAccessToken();
 
     if (token != null) {
@@ -36,7 +39,7 @@ class AuthInterceptor extends QueuedInterceptor {
 
       // Inject the valid token into headers
       options.headers['Authorization'] = 'Bearer $token';
-    } 
+    }
 
     return handler.next(options);
   }

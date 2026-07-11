@@ -1,14 +1,12 @@
-// lib/src/utils/rive_initializer.dart
 import 'package:dio/dio.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:rive/rive.dart';
-import 'package:swift_agents/src/controllers/permissions_provider.dart';
-import 'package:swift_agents/src/models/swift_agents_context.dart';
-import 'package:swift_agents/src/services/conversation_messages_socket.dart';
-import 'package:swift_agents/src/services/conversations_socket.dart';
-import 'package:swift_agents/src/services/interceptors/api_logger_interceptor.dart';
-import 'package:swift_agents/src/services/interceptors/auth_interceptor.dart';
-import 'package:swift_agents/src/services/swift_agents_client.dart';
+import 'package:swift_agents_core/src/controllers/permissions_provider.dart';
+import 'package:swift_agents_core/src/models/swift_agents_context.dart';
+import 'package:swift_agents_core/src/services/conversation_messages_socket.dart';
+import 'package:swift_agents_core/src/services/conversations_socket.dart';
+import 'package:swift_agents_core/src/services/interceptors/auth_interceptor.dart';
+import 'package:swift_agents_core/src/services/swift_agents_client.dart';
 import 'constants/variables.dart';
 import 'controllers/online_provider.dart';
 import 'controllers/sdk_provider.dart';
@@ -127,7 +125,7 @@ class SwiftAgentsCore {
       ),
     );
 
-    client.dio.interceptors.add(ApiLoggerInterceptor());
+    // client.dio.interceptors.add(ApiLoggerInterceptor());
     client.dio.interceptors.add(
       AuthInterceptor(client.dio, sdkProvider: usrContext.sdkProvider),
     );

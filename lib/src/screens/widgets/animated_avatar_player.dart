@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:rive/rive.dart';
-import 'package:swift_agents/src/swift_agents_core.dart';
+import 'package:swift_agents_core/src/swift_agents_core.dart';
 
 class AnimatedAvatarPlayer extends StatefulWidget {
   const AnimatedAvatarPlayer({super.key});

@@ -94,11 +94,11 @@ Initialize the SDK in your `main.dart`:
 
 ## Quick Start
 
-init the SDK in your `main.dart`:
+initiate SwiftAgents in `main.dart`:
 
 ```dart
 import 'package:flutter/material.dart';
-import 'package:swift_agents/swift_agents.dart';
+import 'package:swift_agents_core/swift_agents.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -162,8 +162,72 @@ SwiftAgentsView(
     sdkContext: sdkContext,
 ),
 ```
+## Theming
 
----
+SwiftAgents supports light, dark, and custom themes through `SwiftAgentsThemeData`.
+
+### Light Theme
+
+```dart
+SwiftAgentsView(
+  theme: SwiftAgentsThemeData.light(),
+  sdkContext: sdkContext,
+)
+```
+
+### Dark Theme
+
+```dart
+SwiftAgentsView(
+  theme: SwiftAgentsThemeData.dark(),
+  sdkContext: sdkContext,
+)
+```
+
+## Custom Theme
+
+```dart
+SwiftAgentsView(
+  sdkContext: sdkContext,
+  theme: SwiftAgentsThemeData(
+    sidebarBg: const Color(0xFF4F46E5),
+    userBubble: const Color(0xFF2563EB),
+    agentBubble: const Color(0xFFF3F4F6),
+    background: Colors.white,
+    foreground: Colors.black,
+    border: const Color(0xFFE5E7EB),
+  ),
+)
+```
+
+### Theme Properties
+
+| Property      | Type      | Description                   |
+| ------------- | --------- | ----------------------------- |
+| `sidebarBg`   | `Color`   | Sidebar color.                |
+| `userBubble`  | `Color`   | User message bubble color.    |
+| `agentBubble` | `Color`   | Agent message bubble color.   |
+| `background`  | `Color`   | Main background color.        |
+| `foreground`  | `Color`   | Icon color.                   |
+| `border`      | `Color`   | Chat text field and suggestion chip color.     | 
+| `avatar`      | `Widget?` | Optional custom agent avatar. | 
+
+### Custom Avatar
+
+```dart
+SwiftAgentsView(
+  sdkContext: sdkContext,
+  theme: SwiftAgentsThemeData(
+    avatar: const CircleAvatar(
+      backgroundImage: AssetImage(
+        'assets/images/support_agent.png',
+      ),
+    ),
+  ),
+)
+```
+You may also use network images, SVG widgets, animated widgets, user's profile, or any other Flutter widget to replace the avatar.
+
 
 ## Troubleshooting
 

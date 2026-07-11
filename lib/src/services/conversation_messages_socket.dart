@@ -2,8 +2,8 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:swift_agents/src/models/conversation_details_response.dart';
-import 'package:swift_agents/swift_agents.dart';
+import 'package:swift_agents_core/src/models/conversation_details_response.dart';
+import 'package:swift_agents_core/swift_agents_core.dart';
 
 class ConversationMessagesSocket {
   final String baseUrl;

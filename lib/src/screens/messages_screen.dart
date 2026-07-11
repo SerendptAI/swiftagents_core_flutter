@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:swift_agents/src/controllers/sdk_provider.dart';
-import 'package:swift_agents/src/screens/widgets/chat_bubble.dart';
-import 'package:swift_agents/src/theme/theme.dart';
+import 'package:swift_agents_core/src/controllers/sdk_provider.dart';
+import 'package:swift_agents_core/src/screens/widgets/chat_bubble.dart';
+import 'package:swift_agents_core/src/theme/theme.dart';
 import '../models/msg_model.dart';
 
 class MessagesScreen extends StatefulWidget {
@@ -39,12 +39,14 @@ class _MessagesScreenState extends State<MessagesScreen> {
             mainAxisAlignment: MainAxisAlignment.start,
             children: [
               ChatBubble(message: m),
-              if ((widget.messages.last == m) && sdkProvider.showCurrentMsgLoading)
+              if ((widget.messages.last == m) &&
+                  sdkProvider.showCurrentMsgLoading)
                 Align(
                   alignment: Alignment.centerLeft,
                   child: ChatBubbleLoading(),
                 ),
-              if (widget.messages.last == m) SizedBox(height: widget.lastMsgBottomPadding),
+              if (widget.messages.last == m)
+                SizedBox(height: widget.lastMsgBottomPadding),
             ],
           );
         },
@@ -52,7 +54,6 @@ class _MessagesScreenState extends State<MessagesScreen> {
     );
   }
 }
-
 
 // ***SCREEN-ONLY WIDGETs***
 // 1.

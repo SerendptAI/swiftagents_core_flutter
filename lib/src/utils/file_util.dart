@@ -3,13 +3,13 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
-import 'package:swift_agents/src/utils/file_validation_util.dart';
+import 'package:swift_agents_core/src/utils/file_validation_util.dart';
 import '../controllers/permissions_provider.dart';
 import 'package:uuid/uuid.dart';
 import 'package:crypto/crypto.dart';
 
 class FileUtils {
-    static String getFileNameFromSignature(String signature) {
+  static String getFileNameFromSignature(String signature) {
     const prefix = 'sw_';
 
     if (!signature.startsWith(prefix)) {
@@ -166,7 +166,18 @@ class FileUtils {
       final result = await FilePicker.platform.pickFiles(
         allowMultiple: allowMultiple,
         type: FileType.custom,
-        allowedExtensions: ["pdf", "docx", "txt", "csv", "png", "jpg", "jpeg", "gif", "webp", "heic"],
+        allowedExtensions: [
+          "pdf",
+          "docx",
+          "txt",
+          "csv",
+          "png",
+          "jpg",
+          "jpeg",
+          "gif",
+          "webp",
+          "heic",
+        ],
         withData: true, // Important for Web
       );
 

@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:swift_agents/src/constants/fonts.dart';
-import 'package:swift_agents/src/constants/variables.dart';
-import 'package:swift_agents/src/screens/widgets/gradient_text.dart';
-import 'package:swift_agents/src/screens/widgets/loading_widget.dart';
-import 'package:swift_agents/swift_agents.dart';
+import 'package:swift_agents_core/src/constants/fonts.dart';
+import 'package:swift_agents_core/src/constants/variables.dart';
+import 'package:swift_agents_core/src/screens/widgets/gradient_text.dart';
+import 'package:swift_agents_core/src/screens/widgets/loading_widget.dart';
+import 'package:swift_agents_core/swift_agents_core.dart';
 
 class ButtonFilled extends StatelessWidget {
   final String text;

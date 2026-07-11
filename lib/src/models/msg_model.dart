@@ -1,5 +1,5 @@
-import 'package:swift_agents/src/models/conversations_response.dart';
-import 'package:swift_agents/src/models/upload_attachments_response.dart';
+import 'package:swift_agents_core/src/models/conversations_response.dart';
+import 'package:swift_agents_core/src/models/upload_attachments_response.dart';
 
 import '../screens/widgets/chat_bubble.dart';
 

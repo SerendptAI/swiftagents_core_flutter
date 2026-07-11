@@ -6,7 +6,7 @@ class PermissionsProvider extends ChangeNotifier {
   bool isReadStorageEnabled = false;
   bool isPhotoLibraryEnabled = false;
   bool isMediaLocationEnabled = false;
-  bool isNotificationEnabled = false;
+  // bool isNotificationEnabled = false;
 
   PermissionsProvider() {
     initialized();
@@ -26,7 +26,7 @@ class PermissionsProvider extends ChangeNotifier {
     }
 
     isMediaLocationEnabled = await Permission.accessMediaLocation.isGranted;
-    isNotificationEnabled = await Permission.notification.isGranted;
+    // isNotificationEnabled = await Permission.notification.isGranted;
 
     notifyListeners();
   }
@@ -100,19 +100,19 @@ class PermissionsProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  // ---------------- NOTIFICATION ----------------
+  // // ---------------- NOTIFICATION ----------------
 
-  Future<void> checkNotificationPermission() async {
-    isNotificationEnabled =
-        await Permission.notification.isGranted;
+  // Future<void> checkNotificationPermission() async {
+  //   isNotificationEnabled =
+  //       await Permission.notification.isGranted;
 
-    notifyListeners();
-  }
+  //   notifyListeners();
+  // }
 
-  Future<void> requestNotificationPermission() async {
-    isNotificationEnabled =
-        await Permission.notification.request().isGranted;
+  // Future<void> requestNotificationPermission() async {
+  //   isNotificationEnabled =
+  //       await Permission.notification.request().isGranted;
 
-    notifyListeners();
-  }
+  //   notifyListeners();
+  // }
 }

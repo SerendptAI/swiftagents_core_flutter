@@ -3,17 +3,17 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:provider/provider.dart';
-import 'package:swift_agents/src/constants/colors.dart';
-import 'package:swift_agents/src/constants/fonts.dart';
-import 'package:swift_agents/src/constants/variables.dart';
-import 'package:swift_agents/src/controllers/sdk_provider.dart';
-import 'package:swift_agents/src/models/msg_model.dart';
-import 'package:swift_agents/src/models/upload_attachments_response.dart';
+import 'package:swift_agents_core/src/constants/colors.dart';
+import 'package:swift_agents_core/src/constants/fonts.dart';
+import 'package:swift_agents_core/src/constants/variables.dart';
+import 'package:swift_agents_core/src/controllers/sdk_provider.dart';
+import 'package:swift_agents_core/src/models/msg_model.dart';
+import 'package:swift_agents_core/src/models/upload_attachments_response.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:markdown/markdown.dart' as md;
-import 'package:swift_agents/src/utils/file_util.dart';
-import 'package:swift_agents/src/utils/utils.dart';
-import '../../../swift_agents.dart';
+import 'package:swift_agents_core/src/utils/file_util.dart';
+import 'package:swift_agents_core/src/utils/utils.dart';
+import '../../../swift_agents_core.dart';
 import 'get_cached_image.dart';
 
 enum BubbleRole { user, assistant, system, inbound, outbound, error }
@@ -206,7 +206,7 @@ class _ChatBubbleState extends State<ChatBubble> {
     double width = 168,
   }) {
     final extText = attachment.filename ?? '';
-    double extFontSize = extText.length > 3 ?  12: max((0.505 * width), 20);
+    double extFontSize = extText.length > 3 ? 12 : max((0.505 * width), 20);
     final deco = BoxDecoration(
       color: attachment.isImage
           ? Color(0xFF3a3a3a)
@@ -516,42 +516,42 @@ class _ChatBubbleState extends State<ChatBubble> {
               ),
             ],
           ),
-          if (msg.timestamp != null)
-            Align(
-              alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
-              child: Padding(
-                padding: EdgeInsets.only(
-                  left: !isUser ? 55 : 0,
-                  right: isUser ? 10 : 0,
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    if (isUser && msg.isSent)
-                      Text(
-                        'Sent',
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w500,
-                          color: Color(0xFF72777A),
-                          fontFamily: Fonts.dmSans,
-                          package: Variables.sdkName,
-                        ),
+          Align(
+            alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
+            child: Padding(
+              padding: EdgeInsets.only(
+                left: !isUser ? 55 : 0,
+                right: isUser ? 10 : 0,
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (isUser && msg.isSent)
+                    Text(
+                      'Sent',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                        color: Color(0xFF72777A),
+                        fontFamily: Fonts.dmSans,
+                        package: Variables.sdkName,
                       ),
-                    if (isUser && msg.isSent)
-                      Padding(
-                        padding: const EdgeInsets.only(left: 2, right: 3.0),
-                        child: SvgPicture.asset(
-                          'assets/svgs/double_tick.svg',
-                          width: 17,
-                          height: 17,
-                          colorFilter: ColorFilter.mode(
-                            Color(0xFF72777A),
-                            BlendMode.srcIn,
-                          ),
-                          package: Variables.sdkName,
+                    ),
+                  if (isUser && msg.isSent)
+                    Padding(
+                      padding: const EdgeInsets.only(left: 2, right: 3.0),
+                      child: SvgPicture.asset(
+                        'assets/svgs/double_tick.svg',
+                        width: 17,
+                        height: 17,
+                        colorFilter: ColorFilter.mode(
+                          Color(0xFF72777A),
+                          BlendMode.srcIn,
                         ),
+                        package: Variables.sdkName,
                       ),
+                    ),
+                  if (msg.timestamp != null)
                     Text(
                       utils.formatDateTime(msg.timestamp!),
                       style: TextStyle(
@@ -562,10 +562,10 @@ class _ChatBubbleState extends State<ChatBubble> {
                         package: Variables.sdkName,
                       ),
                     ),
-                  ],
-                ),
+                ],
               ),
             ),
+          ),
         ],
       ),
     );

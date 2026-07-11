@@ -1,4 +1,4 @@
-import 'package:swift_agents/src/controllers/permissions_provider.dart';
+import 'package:swift_agents_core/src/controllers/permissions_provider.dart';
 import '../controllers/online_provider.dart';
 import '../controllers/sdk_provider.dart';
 import '../services/swift_agents_client.dart';

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:swift_agents/src/theme/theme.dart';
+import 'package:swift_agents_core/src/constants/colors.dart';
+import 'package:swift_agents_core/src/theme/theme.dart';
 
 class LoadingWidget extends StatelessWidget {
   final double? size;
@@ -14,11 +15,8 @@ class LoadingWidget extends StatelessWidget {
       child: SizedBox(
         width: size,
         height: size,
-        child: CircularProgressIndicator(
-          color: color ?? t.muted,
-        ),
+        child: CircularProgressIndicator(color: color ?? kMutedBlue),
       ),
     );
   }
 }
-

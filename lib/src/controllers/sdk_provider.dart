@@ -1,15 +1,14 @@
 import 'dart:collection';
 import 'package:dio/dio.dart';
 import 'package:flutter/cupertino.dart';
-import 'package:swift_agents/src/constants/variables.dart';
-import 'package:swift_agents/src/models/conversations_response.dart';
-import 'package:swift_agents/src/models/reopen_ticket_response.dart';
-import 'package:swift_agents/src/models/upload_attachments_response.dart';
-import 'package:swift_agents/src/services/conversation_messages_socket.dart';
-import 'package:swift_agents/src/services/conversations_socket.dart';
-import 'package:swift_agents/src/services/interceptors/api_logger_interceptor.dart';
-import 'package:swift_agents/src/services/swift_agents_client.dart';
-import 'package:swift_agents/src/utils/file_util.dart';
+import 'package:swift_agents_core/src/constants/variables.dart';
+import 'package:swift_agents_core/src/models/conversations_response.dart';
+import 'package:swift_agents_core/src/models/reopen_ticket_response.dart';
+import 'package:swift_agents_core/src/models/upload_attachments_response.dart';
+import 'package:swift_agents_core/src/services/conversation_messages_socket.dart';
+import 'package:swift_agents_core/src/services/conversations_socket.dart';
+import 'package:swift_agents_core/src/services/swift_agents_client.dart';
+import 'package:swift_agents_core/src/utils/file_util.dart';
 import '../models/conversation_details_response.dart';
 import '../models/init_session_response.dart';
 import '../models/msg_model.dart';
@@ -161,12 +160,12 @@ class SdkProvider with ChangeNotifier {
   }
 
   /// 2. Sets & open a chat session
-  void openChat(String sessionId, int index) {
+  void openChat(String sessionId, int index, [bool enableAPI = true]) {
     _currentSessionId = sessionId;
     _selectedConversationIndex = index;
     notifyListeners();
 
-    if (_currentSessionId != null) {
+    if (_currentSessionId != null && enableAPI) {
       initConversationMessagesSock(conversationId: _currentSessionId!);
       getConversationMessages(sessionId: _currentSessionId!);
     }
@@ -186,21 +185,22 @@ class SdkProvider with ChangeNotifier {
   }
 
   /// 5. Updates a particular conversation based on details from getConversationMessages
-  void updateConversationFromMsgesDetail(ConversationDetailsResponse details){
+  void updateConversationFromMsgesDetail(ConversationDetailsResponse details) {
     // Update conversations list
     if (details.updatedAt != null) {
       final updatedConvoIndex = _conversationsList.indexWhere(
-            (c) => details.id == c.id,
+        (c) => details.id == c.id,
       );
 
       if (updatedConvoIndex != -1) {
-        _conversationsList[updatedConvoIndex] = _conversationsList[updatedConvoIndex].copyWith(
-          updatedAt: details.updatedAt,
-          resolved: details.resolved,
-          resolvedAt: details.resolvedAt,
-          type: details.type,
-          subject: details.subject,
-        );
+        _conversationsList[updatedConvoIndex] =
+            _conversationsList[updatedConvoIndex].copyWith(
+              updatedAt: details.updatedAt,
+              resolved: details.resolved,
+              resolvedAt: details.resolvedAt,
+              type: details.type,
+              subject: details.subject,
+            );
       }
     }
   }
@@ -228,9 +228,9 @@ class SdkProvider with ChangeNotifier {
           )
         : client;
 
-    if (refresh) {
-      newClient.dio.interceptors.add(ApiLoggerInterceptor());
-    }
+    // if (refresh) {
+    //   newClient.dio.interceptors.add(ApiLoggerInterceptor());
+    // }
 
     InitSessionResponse? session = await newClient.initialize();
 
@@ -276,12 +276,8 @@ class SdkProvider with ChangeNotifier {
     final sessionMsgs = _chatSessions.putIfAbsent(sessionId, () => []);
 
     if (_conversationsList.isNotEmpty) {
-      // if (sessionMsgs.isNotEmpty) {
-      // isAIStreamOver = sessionMsgs.any(
-      //   (sMsg) => [BubbleRole.inbound, BubbleRole.outbound].contains(sMsg.role),
-      // );
-      // }
-      isAIStreamOver = _conversationsList[_selectedConversationIndex ?? 0].type == "ticket";
+      isAIStreamOver =
+          _conversationsList[_selectedConversationIndex ?? 0].type == "ticket";
     }
 
     // Only show loading widget, if user is not speaking to human (i.e AI) & isOnline
@@ -320,7 +316,6 @@ class SdkProvider with ChangeNotifier {
           if (!isAIStreamOver) _showMsgLoading[sessionId] = false;
           if (sessionMsgs.isNotEmpty) sessionMsgs.last.isSent = true;
           if (chunk.text.isNotEmpty && disableErrorMessage) {
-            print('Adding new message to sessionMsgs: ${chunk.text}');
             sessionMsgs.add(
               MsgModel(
                 null,
@@ -402,6 +397,7 @@ class SdkProvider with ChangeNotifier {
     /// This is used to refresh the conversations list, and fetch the first page of conversations.
     /// only call this when the user is online, to avoid unnecessary API Error.
     bool refresh = false,
+
     /// This checks if Conversations has been fetched atleast once
     bool checkConversationsLoaded = false,
   }) async {
@@ -430,14 +426,14 @@ class SdkProvider with ChangeNotifier {
         if (refresh) {
           // Non-Pagnated (refreshed)
           _conversationsList = response.items ?? [];
-          if (_conversationsList.isEmpty){
+          if (_conversationsList.isEmpty) {
             // create new chat if no conversations exist, to avoid empty screen.
             createNewChat(enableMsgSocket: true);
-          }
-          else if (((_selectedConversationIndex ??0) + 1) > _conversationsList.length) {
+          } else if (((_selectedConversationIndex ?? 0) + 1) >
+              _conversationsList.length) {
             // If the selected index is out of bounds, open the first conversation.
             openChat(_conversationsList[0].id!, 0);
-          } 
+          }
         } else {
           // Paganated
           final fetchedItems = response.items ?? [];
@@ -617,11 +613,12 @@ class SdkProvider with ChangeNotifier {
     conversationMsgSocket.connect(
       _initSessionResponse?.sessionToken ?? '',
       conversationId,
+      onConnect: () {
+        logDebug('USER(${client.email}): MSG-$conversationId SOCKET CONNECTED');
+      },
       onInit: (ConversationDetailsResponse? details) {
         _getConversionMsgesSockLoading[conversationId] = false;
         notifyListeners();
-        logDebug('USER(${client.email}) MSG SOCKET CONNECTED');
-
         if (details != null) {
           // Update messages
           final formattedMsgs = details.messages.map((msg) {
@@ -646,13 +643,15 @@ class SdkProvider with ChangeNotifier {
       onUpdate: (msgs) {
         _getConversionMsgesSockLoading[conversationId] = false;
         notifyListeners();
-        logDebug('USER(${client.email}) MSG SOCKET UPDATED: ${msgs?.toJson()}');
+        // logDebug('USER(${client.email}) MSG SOCKET UPDATED: ${msgs?.toJson()}');
         mergeMessagesUpdate(msgs);
       },
       onDisconnect: () {
         _getConversionMsgesSockLoading[conversationId] = false;
         notifyListeners();
-        logDebug('USER(${client.email}) MSG SOCKET DISCONNECTED');
+        logDebug(
+          'USER(${client.email}): MSG-$conversationId SOCKET DISCONNECTED',
+        );
       },
       onError: (error, [trace]) {
         _getConversionMsgesSockLoading[conversationId] = false;
@@ -663,17 +662,16 @@ class SdkProvider with ChangeNotifier {
             }
           });
         } else {
-          logError('USER(${client.email}) MESSAGE SOCKET ERROR: $error', trace);
+          logError(
+            'USER(${client.email}) MSG-$conversationId SOCKET ERROR: $error',
+            trace,
+          );
         }
       },
     );
   }
 
   void mergeMessagesUpdate(ConversationDetailsResponse? details) {
-    logWarning(
-      'USER(${client.email}) MSG SOCKET FETCHED 1: ${details?.toJson()}',
-    );
-
     if (details != null && details.messages.isNotEmpty) {
       final messages = details.messages;
       // Rejects socket updates triggered by the current streamed message.
@@ -734,9 +732,9 @@ class SdkProvider with ChangeNotifier {
       onUpdate: (ConversationsResponse? convosUpdate) {
         _isInitConversationsSockLoading = false;
         notifyListeners();
-        logDebug(
-          'USER(${client.email}) CONVO SOCKET UPDATED: ${convosUpdate?.toJson()}',
-        );
+        // logDebug(
+        //   'USER(${client.email}) CONVO SOCKET UPDATED: ${convosUpdate?.toJson()}',
+        // );
 
         mergeConversationsUpdate(convosUpdate);
       },
@@ -777,11 +775,13 @@ class SdkProvider with ChangeNotifier {
         _conversationsList.insert(0, convoUpdate);
       }
 
-
       // Update the selected conversation's index, so that the selected conversation on the sidebar,
       // matches the displayed conversation shown on the Messages screen on the right.
-      final newIndexOfTheCurrentConvo = conversationsList.indexWhere((convo) => convo.id == _currentSessionId);
-      if (newIndexOfTheCurrentConvo != -1) _selectedConversationIndex = newIndexOfTheCurrentConvo;
+      final newIndexOfTheCurrentConvo = conversationsList.indexWhere(
+        (convo) => convo.id == _currentSessionId,
+      );
+      if (newIndexOfTheCurrentConvo != -1)
+        _selectedConversationIndex = newIndexOfTheCurrentConvo;
 
       notifyListeners();
     }

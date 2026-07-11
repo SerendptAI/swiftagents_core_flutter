@@ -1,6 +1,6 @@
-name: swift_agents
+name: swift_agents_core
 description: "The main for swift agents"
-version: 0.0.1
+version: 0.8.0
 homepage: https://github.com/SerendptAI/swiftagents_core_flutter
 
 environment:

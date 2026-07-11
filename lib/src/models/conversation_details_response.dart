@@ -1,5 +1,5 @@
-import 'package:swift_agents/src/models/upload_attachments_response.dart';
-import 'package:swift_agents/src/screens/widgets/chat_bubble.dart';
+import 'package:swift_agents_core/src/models/upload_attachments_response.dart';
+import 'package:swift_agents_core/src/screens/widgets/chat_bubble.dart';
 
 class ConversationDetailsResponse {
   final String id;
@@ -95,7 +95,8 @@ class ConversationMessage {
       id: json['id'],
       role: BubbleRole.values.singleWhere(
         (type) => type.name == (json['role'] as String?)?.toLowerCase(),
-        orElse: () => BubbleRole.assistant, // Default to assistant if role is not found
+        orElse: () =>
+            BubbleRole.assistant, // Default to assistant if role is not found
       ),
       content: json['content'],
       timestamp: json['timestamp'] != null

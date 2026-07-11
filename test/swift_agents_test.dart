@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:swift_agents/src/models/upload_attachments_response.dart';
+import 'package:swift_agents_core/src/models/upload_attachments_response.dart';
 
 void main() {
   group('AttachmentModel', () {

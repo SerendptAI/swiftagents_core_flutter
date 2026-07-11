@@ -1,6 +1,5 @@
-
 import 'package:flutter/material.dart';
-import 'package:swift_agents/swift_agents.dart';
+import 'package:swift_agents_core/swift_agents_core.dart';
 
 class GradientText extends StatelessWidget {
   final String text;
@@ -21,20 +20,13 @@ class GradientText extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = SwiftAgentsTheme.of(context);
 
-    final grad = gradient ??  LinearGradient(
-  colors: [t.foreground, Colors.white],
-);
+    final grad =
+        gradient ?? LinearGradient(colors: [t.foreground, Colors.white]);
     return ShaderMask(
       blendMode: BlendMode.srcIn,
-      shaderCallback: (bounds) => grad.createShader(
-        Rect.fromLTWH(0, 0, bounds.width, bounds.height),
-      ),
-      child: Text(
-        text,
-        textAlign: textAlign,
-        style: style,
-        overflow: overflow,
-      ),
+      shaderCallback: (bounds) =>
+          grad.createShader(Rect.fromLTWH(0, 0, bounds.width, bounds.height)),
+      child: Text(text, textAlign: textAlign, style: style, overflow: overflow),
     );
   }
 }

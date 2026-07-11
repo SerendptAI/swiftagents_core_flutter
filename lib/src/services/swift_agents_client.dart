@@ -3,16 +3,16 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:dio/dio.dart';
-import 'package:swift_agents/src/constants/variables.dart';
-import 'package:swift_agents/src/models/conversation_details_response.dart';
-import 'package:swift_agents/src/models/init_session_response.dart';
-import 'package:swift_agents/src/models/msg_model.dart';
-import 'package:swift_agents/src/models/reopen_ticket_response.dart';
-import 'package:swift_agents/src/models/upload_attachments_response.dart';
-import 'package:swift_agents/src/screens/widgets/chat_bubble.dart';
-import 'package:swift_agents/src/swift_agents_core.dart';
-import 'package:swift_agents/src/utils/file_util.dart';
-import 'package:swift_agents/src/utils/logger.dart';
+import 'package:swift_agents_core/src/constants/variables.dart';
+import 'package:swift_agents_core/src/models/conversation_details_response.dart';
+import 'package:swift_agents_core/src/models/init_session_response.dart';
+import 'package:swift_agents_core/src/models/msg_model.dart';
+import 'package:swift_agents_core/src/models/reopen_ticket_response.dart';
+import 'package:swift_agents_core/src/models/upload_attachments_response.dart';
+import 'package:swift_agents_core/src/screens/widgets/chat_bubble.dart';
+import 'package:swift_agents_core/src/swift_agents_core.dart';
+import 'package:swift_agents_core/src/utils/file_util.dart';
+import 'package:swift_agents_core/src/utils/logger.dart';
 import '../models/conversations_response.dart';
 
 class SwiftAgentsClient {

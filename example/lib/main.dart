@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:swift_agents/swift_agents.dart';
+import 'package:swift_agents_core/swift_agents_core.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await SwiftAgentsCore.init(
-      companyId: 'your_company_id',
-      apiKey: 'your_api_key',
+    companyId: 'your_company_id',
+    apiKey: 'your_api_key',
   );
   runApp(const ExampleApp());
 }
@@ -18,7 +18,8 @@ class ExampleApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'SwiftAgents Demo',
-      theme: ThemeData(colorScheme: ColorScheme.fromSeed(seedColor: Colors.yellow)),
+      theme: ThemeData(
+          colorScheme: ColorScheme.fromSeed(seedColor: Colors.yellow)),
       home: const HomePage(),
     );
   }
@@ -39,7 +40,7 @@ class HomePage extends StatelessWidget {
       floatingActionButton: FloatingActionButton(
         onPressed: () {
           SwiftAgentsView(
-              sdkContext: sdkContext
+            sdkContext: sdkContext,
           ).show(context);
         },
         child: const Icon(Icons.wechat_outlined),
@@ -70,4 +71,3 @@ class HomePage extends StatelessWidget {
     );
   }
 }
-

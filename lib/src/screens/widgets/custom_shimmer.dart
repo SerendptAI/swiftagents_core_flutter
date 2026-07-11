@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shimmer/shimmer.dart';
 
-import '../../../swift_agents.dart';
+import '../../../swift_agents_core.dart';
 
 class CustomShimmer extends StatelessWidget {
   final double height;
