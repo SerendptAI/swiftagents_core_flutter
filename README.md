@@ -2,16 +2,11 @@
 
 # SwiftAgents Core SDK
 
-<!-- Ensure the asset path is declared in your pubspec.yaml, for example:
-flutter:
-  assets:
-    - assets/images/logo.png
--->
-
 SwiftAgents core flutter package for embedding AI support agents into Android, and iOS applications.
 
 ---
 
+https://github.com/user-attachments/assets/4043cdf1-5cf7-42f6-a45e-df180514287f
 <!-- <video autoplay muted loop width="100%" preload="metadata">
   <source src="assets/videos/agent_001.mp4" type="video/mp4" />
   Your browser does not support the video tag.
