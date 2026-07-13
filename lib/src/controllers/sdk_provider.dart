@@ -72,7 +72,7 @@ class SdkProvider with ChangeNotifier {
   UploadAttachmentsResponse? get uploadAttachmentsResponse =>
       _uploadAttachmentsResponse;
 
-  List<AttachmentModel> _previousUploadedFiles = [];
+  final List<AttachmentModel> _previousUploadedFiles = [];
   UnmodifiableListView<AttachmentModel> get previousUploadedFiles =>
       UnmodifiableListView(_previousUploadedFiles);
 
@@ -259,8 +259,9 @@ class SdkProvider with ChangeNotifier {
   }) async {
     if (_isSendingMessages[sessionId] == true ||
         !_isInitialized ||
-        _isUploadAttachmentsLoading)
+        _isUploadAttachmentsLoading) {
       return null;
+    }
     _showMsgTyping[sessionId] = true;
     _isSendingMessages[sessionId] = true;
     _streamedMsgID = null;
@@ -464,8 +465,9 @@ class SdkProvider with ChangeNotifier {
   Future<ConversationDetailsResponse?> getConversationMessages({
     required String sessionId,
   }) async {
-    if (_getConversionMsgesLoading[sessionId] == true || !_isInitialized)
+    if (_getConversionMsgesLoading[sessionId] == true || !_isInitialized) {
       return null;
+    }
 
     _getConversionMsgesLoading[sessionId] = true;
     notifyListeners();

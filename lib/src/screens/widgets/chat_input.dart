@@ -177,7 +177,7 @@ class _ChatInputState extends State<ChatInput> {
                   decoration: BoxDecoration(
                     border: Border.all(color: t.border),
                     borderRadius: BorderRadius.circular(8),
-                    color: t.foreground.withOpacity(0.05),
+                    color: t.foreground.withValues(alpha: 0.02),
                   ),
                   clipBehavior: Clip.hardEdge,
                   child: Stack(

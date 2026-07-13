@@ -1,4 +1,4 @@
-## 0.0.1
+## 0.8.0
 
 - Initial release of the Swift Agents core SDK.
 - Added support for chat input with media attachment functionality.

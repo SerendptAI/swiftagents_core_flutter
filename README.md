@@ -8,14 +8,14 @@ flutter:
     - assets/images/logo.png
 -->
 
-SwiftAgents core flutter package for embedding AI support agents into Android, iOS and Web applications.
+SwiftAgents core flutter package for embedding AI support agents into Android, and iOS applications.
 
 ---
 
-<video autoplay muted loop width="100%" preload="metadata">
+<!-- <video autoplay muted loop width="100%" preload="metadata">
   <source src="assets/videos/agent_001.mp4" type="video/mp4" />
   Your browser does not support the video tag.
-</video>
+</video> -->
 
 ## Required Platform Permissions
 

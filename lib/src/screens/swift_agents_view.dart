@@ -56,7 +56,7 @@ class SwiftAgentsView extends StatelessWidget {
 class _SwiftAgentsViewBody extends StatefulWidget {
   final SwiftAgentsThemeData? theme;
 
-  const _SwiftAgentsViewBody({super.key, required this.theme});
+  const _SwiftAgentsViewBody({required this.theme});
 
   @override
   State<_SwiftAgentsViewBody> createState() => _SwiftAgentsViewBodyState();
@@ -78,7 +78,7 @@ class _SwiftAgentsViewBodyState extends State<_SwiftAgentsViewBody>
       sdkProvider.initConversationsSock();
       sdkProvider.getConversations(checkConversationsLoaded: true);
       sdkProvider.initConversationMessagesSock(
-        conversationId: sdkProvider.currentSessionId!,
+        conversationId: sdkProvider.currentSessionId,
       );
     }
   }

@@ -45,9 +45,10 @@ class OnlineProvider with ChangeNotifier {
     }
   }
 
-
+  @override
   void dispose() {
     _subscription?.cancel();
     _onlineController.close();
+    super.dispose();
   }
 }

@@ -100,7 +100,7 @@ class _ChatBubbleLoadingState extends State<ChatBubbleLoading>
           width: 93,
           padding: const EdgeInsets.symmetric(horizontal: 12),
           decoration: BoxDecoration(
-            color: const Color(0xFF9DCCFF).withOpacity(0.02),
+            color: const Color(0xFF9DCCFF).withValues(alpha: 0.02),
             borderRadius: BorderRadius.circular(28),
           ),
           alignment: Alignment.center,

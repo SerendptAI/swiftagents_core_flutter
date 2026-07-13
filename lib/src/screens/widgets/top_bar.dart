@@ -39,7 +39,7 @@ class TopBar extends StatelessWidget {
               height: 42,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                border: Border.all(color: t.foreground.withOpacity(0.06)),
+                border: Border.all(color: t.foreground.withValues(alpha: 0.06)),
               ),
               alignment: Alignment.center,
               child: SvgPicture.asset(

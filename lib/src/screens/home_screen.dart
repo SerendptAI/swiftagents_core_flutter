@@ -2,7 +2,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:marqueer/marqueer.dart';
 import 'package:provider/provider.dart';
-import 'package:swift_agents_core/src/models/conversations_response.dart';
 import 'package:swift_agents_core/src/screens/widgets/animated_avatar_player.dart';
 import 'package:swift_agents_core/src/screens/widgets/button_filled.dart';
 import 'package:swift_agents_core/src/screens/widgets/chat_input.dart';
@@ -144,7 +143,7 @@ class _SuggestionChip extends StatelessWidget {
             height: 2,
             fontFamily: Fonts.dmMono,
             package: Variables.sdkName,
-            color: t.foreground.withOpacity(0.8),
+            color: t.foreground.withValues(alpha: 0.8),
           ),
         ),
       ),

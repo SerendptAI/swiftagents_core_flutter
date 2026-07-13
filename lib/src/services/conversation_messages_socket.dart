@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
-import 'package:flutter/material.dart';
+
 import 'package:swift_agents_core/src/models/conversation_details_response.dart';
 import 'package:swift_agents_core/swift_agents_core.dart';
 
@@ -109,7 +109,6 @@ class ConversationMessagesSocket {
           try {
             json = jsonDecode(message) as Map<String, dynamic>;
           } catch (e) {
-            print('ERROR MARKER 1');
             onError?.call(e);
             return;
           }
@@ -134,7 +133,6 @@ class ConversationMessagesSocket {
                 break;
 
               case 'error':
-                print('ERROR MARKER 2');
                 onError?.call(json['message'] ?? 'Unknown error');
                 break;
 
@@ -142,7 +140,6 @@ class ConversationMessagesSocket {
                 break;
             }
           } catch (e, trace) {
-            print('ERROR MARKER 3');
             onError?.call(e, trace);
           }
         },
@@ -162,7 +159,6 @@ class ConversationMessagesSocket {
         },
         onError: (error) {
           onError?.call(error);
-          print('ERROR MARKER 4');
           scheduleReconnect(
             generation: generation,
             token: token,
@@ -178,10 +174,8 @@ class ConversationMessagesSocket {
         cancelOnError: true,
       );
     } catch (e) {
-      print('ERROR MARKER 5a');
 
       if (generation == _connectionGeneration) {
-        print('ERROR MARKER 5b');
         onError?.call(e);
         scheduleReconnect(
           generation: generation,

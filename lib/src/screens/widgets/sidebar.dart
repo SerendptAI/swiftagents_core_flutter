@@ -51,7 +51,7 @@ class _SidebarWidgetState extends State<SidebarWidget> {
     final hasNext = sdkProvider.hasNext;
     final selectedIndex = sdkProvider.selectedConversationIndex;
 
-    void _openChat(ConversationSession recent, int index) {
+    void openChat(ConversationSession recent, int index) {
       final isOnline = onlineProvider?.isOnline ?? false;
 
       if (recent.id != null) {
@@ -150,7 +150,7 @@ class _SidebarWidgetState extends State<SidebarWidget> {
                   physics: physics,
                   reverse: reverse,
                   shrinkWrap: shrinkWrap,
-                  separatorBuilder: (_, __) => const SizedBox(height: 0),
+                  separatorBuilder: (_, na) => const SizedBox(height: 0),
                   itemCount: recents.length,
                   itemBuilder: (context, index) {
                     final recent = recents[index];
@@ -168,7 +168,7 @@ class _SidebarWidgetState extends State<SidebarWidget> {
                           index: index,
                           selectedIndex: selectedIndex,
                           onTap: () {
-                            _openChat(recent, index);
+                            openChat(recent, index);
                           },
                           item: recent,
                         ),
@@ -205,7 +205,7 @@ class _SidebarWidgetState extends State<SidebarWidget> {
                   BoxShadow(
                     blurRadius: 14,
                     offset: const Offset(0, 6),
-                    color: Colors.black.withOpacity(0.12),
+                    color: Colors.black.withValues(alpha: 0.12),
                   ),
                 ],
               ),
