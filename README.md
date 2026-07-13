@@ -12,6 +12,10 @@ https://github.com/user-attachments/assets/4043cdf1-5cf7-42f6-a45e-df180514287f
   Your browser does not support the video tag.
 </video> -->
 
+## Getting Started
+
+To get started with SwiftAgents, first [Sign up](https://swiftagents.org/en/signup) to create your account. Then, retrieve your `companyId` and `apiKey` from [https://swiftagents.org/en/dashboard/settings/api-keys](https://swiftagents.org/en/dashboard/settings/api-keys). You'll need these credentials to initialize the SDK in your application.
+
 ## Required Platform Permissions
 
 This SDK also uses the `image_picker` and `file_picker` packages; your app would need the following permissions for the SDK to work properly:
