@@ -34,7 +34,9 @@ class ConversationMessagesSocket {
     void Function(ConversationDetailsResponse? msg)? onUpdate,
     void Function()? onReconnectFailed,
   }) {
-    if (generation != _connectionGeneration) return;
+    if (generation != _connectionGeneration) {
+      return;
+    }
     if (_retryCount >= _maxRetries || !_shouldReconnect) {
       if (_retryCount >= _maxRetries) {
         onReconnectFailed?.call();
@@ -174,7 +176,6 @@ class ConversationMessagesSocket {
         cancelOnError: true,
       );
     } catch (e) {
-
       if (generation == _connectionGeneration) {
         onError?.call(e);
         scheduleReconnect(

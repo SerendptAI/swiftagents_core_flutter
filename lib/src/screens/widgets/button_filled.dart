@@ -29,7 +29,7 @@ class ButtonFilled extends StatelessWidget {
   final Color? outlineColor;
   final EdgeInsetsGeometry margin;
   final BorderRadiusGeometry? borderRadius;
-  final boxShadows;
+  final List<BoxShadow>? boxShadows;
 
   const ButtonFilled({
     super.key,
@@ -131,7 +131,7 @@ class ButtonFilled extends StatelessWidget {
                 ? Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      if (leading != null) leading!,
+                      ?leading,
                       if (leading != null) SizedBox(width: leadingWidth),
                       enableTextGradient
                           ? GradientText(
@@ -160,7 +160,7 @@ class ButtonFilled extends StatelessWidget {
                                   ),
                             ),
                       if (trailing != null) SizedBox(width: trailingWidth),
-                      if (trailing != null) trailing!,
+                      ?trailing,
                     ],
                   )
                 : Center(

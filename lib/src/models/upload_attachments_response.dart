@@ -35,9 +35,6 @@ class AttachmentModel {
         ext == 'heic';
   }
 
-  @Deprecated(
-    'Use fileName instead. Make sure to use FileUtils.getFileNameFromSignature(fileName) to get the main file name when displaying on UI.',
-  )
   String? get getFileExtension {
     final rawName = filename ?? url;
 

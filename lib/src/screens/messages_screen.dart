@@ -94,7 +94,7 @@ class _ChatBubbleLoadingState extends State<ChatBubbleLoading>
 
     return AnimatedBuilder(
       animation: _controller,
-      builder: (_, __) {
+      builder: (_, na) {
         return Container(
           height: 40,
           width: 93,

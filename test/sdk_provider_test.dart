@@ -3,8 +3,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:swift_agents_core/src/constants/variables.dart';
 import 'package:swift_agents_core/src/controllers/sdk_provider.dart';
 import 'package:swift_agents_core/src/models/conversations_response.dart';
-import 'package:swift_agents_core/src/models/msg_model.dart';
-import 'package:swift_agents_core/src/screens/widgets/chat_bubble.dart';
 import 'package:swift_agents_core/src/services/conversation_messages_socket.dart';
 import 'package:swift_agents_core/src/services/conversations_socket.dart';
 import 'package:swift_agents_core/src/services/swift_agents_client.dart';

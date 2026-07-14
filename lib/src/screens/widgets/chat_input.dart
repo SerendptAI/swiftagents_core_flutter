@@ -63,20 +63,25 @@ class _ChatInputState extends State<ChatInput> {
   Future<void> _pickImages() async {
     final files = await _fileUtils.imagesPicker(context);
 
-    if (files == null || files.isEmpty) return;
-
+    if (files == null || files.isEmpty) {
+      return;
+    }
     _addFiles(files);
   }
 
   Future<void> _openCamera() async {
     final file = await _fileUtils.cameraPicker(context);
 
-    if (file != null) _addFiles([file]);
+    if (file != null) {
+      _addFiles([file]);
+    }
   }
 
   Future<void> _pickFiles() async {
     final files = await _fileUtils.filesPicker(context, maxFiles: _maxFiles);
-    if (files == null || files.isEmpty) return;
+    if (files == null || files.isEmpty) {
+      return;
+    }
 
     _addFiles(files);
   }
@@ -103,7 +108,9 @@ class _ChatInputState extends State<ChatInput> {
     final isAnyMaxSize = _selectedFiles.any((sFiles) => sFiles.isMaxSize);
     final text = _controller.text.trim();
 
-    if (text.isEmpty || lockMsgSend()) return;
+    if (text.isEmpty || lockMsgSend()) {
+      return;
+    }
 
     if (isAnyMaxSize) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -122,10 +129,12 @@ class _ChatInputState extends State<ChatInput> {
   void checkInternetConnection() {
     final onlineProvider = Provider.of<OnlineProvider>(context, listen: false);
     isOnline = onlineProvider.isOnline;
-    _onlineSubscription = onlineProvider.onlineStream.listen((bool _isOnline) {
-      if (!mounted) return;
+    _onlineSubscription = onlineProvider.onlineStream.listen((bool online) {
+      if (!mounted) {
+        return;
+      }
       setState(() {
-        isOnline = _isOnline;
+        isOnline = online;
       });
     });
   }
@@ -164,7 +173,7 @@ class _ChatInputState extends State<ChatInput> {
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
               itemCount: _selectedFiles.length,
-              separatorBuilder: (_, __) => const SizedBox(width: 8),
+              separatorBuilder: (_, na) => const SizedBox(width: 8),
               itemBuilder: (context, index) {
                 final file = _selectedFiles[index];
                 final isMaxSize = file.isMaxSize;

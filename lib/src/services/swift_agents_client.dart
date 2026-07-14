@@ -63,7 +63,9 @@ class SwiftAgentsClient {
         queryParameters: {'cursor': cursor, 'limit': limit},
       );
 
-      if (response.data == null) return null;
+      if (response.data == null) {
+        return null;
+      }
 
       return ConversationsResponse.fromJson(response.data);
     } catch (e, trace) {
@@ -79,7 +81,9 @@ class SwiftAgentsClient {
     try {
       var response = await dio.get(_sdkPath('/conversations/$conversationId'));
 
-      if (response.data == null) return null;
+      if (response.data == null) {
+        return null;
+      }
 
       return ConversationDetailsResponse.fromJson(response.data);
     } catch (e, trace) {
@@ -261,7 +265,9 @@ class SwiftAgentsClient {
         },
       );
 
-      if (response.data == null) return null;
+      if (response.data == null) {
+        return null;
+      }
 
       return UploadAttachmentsResponse.fromJson(response.data);
     } catch (e, t) {
@@ -278,7 +284,9 @@ class SwiftAgentsClient {
         _sdkPath('/tickets/$conversationId/reopen'),
       );
 
-      if (response.data == null) return null;
+      if (response.data == null) {
+        return null;
+      }
 
       return ReopenTicketResponse.fromJson(response.data);
     } catch (e, trace) {

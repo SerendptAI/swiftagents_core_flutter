@@ -1,6 +1,5 @@
-## 0.8.0
+## 0.8.1
 
-- Initial release of the Swift Agents core SDK.
-- Added support for chat input with media attachment functionality.
-- Integrated camera
-- Added dependencies for network requests, image caching, and permission handling.
+- Improved documentation
+- Added repository & homepage to pub.dev
+- pub suggestions refactoring

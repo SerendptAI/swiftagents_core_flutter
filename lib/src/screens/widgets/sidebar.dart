@@ -116,12 +116,16 @@ class _SidebarWidgetState extends State<SidebarWidget> {
               onLoadMore: (int page) {
                 WidgetsBinding.instance.addPostFrameCallback((_) {
                   final isOnline = onlineProvider?.isOnline ?? false;
-                  if (isOnline) sdkProvider.getConversations();
+                  if (isOnline) {
+                    sdkProvider.getConversations();
+                  }
                 });
               },
               onRefresh: () async {
                 final isOnline = onlineProvider?.isOnline ?? false;
-                if (isOnline) await sdkProvider.getConversations(refresh: true);
+                if (isOnline) {
+                  await sdkProvider.getConversations(refresh: true);
+                }
               },
               refreshBuilder: (context, onRefresh, child) {
                 return RefreshIndicator(
@@ -249,7 +253,9 @@ class _NewChatState extends State<_NewChat> {
   @override
   void initState() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) setState(() => isSelected = true);
+      if (mounted) {
+        setState(() => isSelected = true);
+      }
     });
     super.initState();
   }

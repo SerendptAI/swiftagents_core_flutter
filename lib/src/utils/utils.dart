@@ -6,7 +6,9 @@ class Utils {
     try {
       // 1. Split the token into its 3 parts (Header, Payload, Signature)
       final parts = token.split('.');
-      if (parts.length != 3) return null;
+      if (parts.length != 3) {
+        return null;
+      }
 
       // 2. Normalize and pad the Base64 URL encoded payload
       String payloadPart = parts[1];

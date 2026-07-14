@@ -70,7 +70,9 @@ class FileUtils {
 
     final hasPermission = await permissionsProvider.requestPhotoLibraryAccess();
 
-    if (!hasPermission) return null;
+    if (!hasPermission) {
+      return null;
+    }
 
     final picker = ImagePicker();
 
@@ -114,7 +116,9 @@ class FileUtils {
 
     final hasPermission = await permissionsProvider.requestPhotoLibraryAccess();
 
-    if (!hasPermission) return null;
+    if (!hasPermission) {
+      return null;
+    }
 
     final picker = ImagePicker();
 
@@ -160,7 +164,9 @@ class FileUtils {
     final hasPermission = await permissionsProvider
         .requestReadStoragePermission();
 
-    if (!hasPermission) return null;
+    if (!hasPermission) {
+      return null;
+    }
 
     try {
       final result = await FilePicker.platform.pickFiles(
@@ -181,8 +187,10 @@ class FileUtils {
         withData: true, // Important for Web
       );
 
-      if (result == null) return null;
-
+      if (result == null) {
+        return null;
+      }
+      
       return result.files
           .map((pFIle) {
             final isWithinLimit = FileValidationHelper.isWithinLimit(

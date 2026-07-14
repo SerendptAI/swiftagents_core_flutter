@@ -10,6 +10,7 @@ class GradientText extends StatelessWidget {
 
   const GradientText(
     this.text, {
+    super.key,
     this.style,
     this.overflow,
     this.textAlign,

@@ -154,7 +154,9 @@ class SdkProvider with ChangeNotifier {
     _chatSessions[id] = [];
     _selectedConversationIndex = null;
 
-    if (enableMsgSocket) initConversationMessagesSock(conversationId: id);
+    if (enableMsgSocket) {
+      initConversationMessagesSock(conversationId: id);
+    }
 
     notifyListeners();
   }
@@ -208,7 +210,9 @@ class SdkProvider with ChangeNotifier {
   // API ViewModels Methods
   /// 1. Create session for user
   Future<InitSessionResponse?> initiateSession({bool refresh = false}) async {
-    if (_isInitiateSessionLoading || (_isInitialized && !refresh)) return null;
+    if (_isInitiateSessionLoading || (_isInitialized && !refresh)) {
+      return null;
+    }
 
     _isInitiateSessionLoading = true;
     notifyListeners();
@@ -314,8 +318,12 @@ class SdkProvider with ChangeNotifier {
           // if (chunk.role != currentActiveRole) { // Allows persistent display of system messages
           currentActiveRole = chunk.role;
           _streamedMessage = '';
-          if (!isAIStreamOver) _showMsgLoading[sessionId] = false;
-          if (sessionMsgs.isNotEmpty) sessionMsgs.last.isSent = true;
+          if (!isAIStreamOver) {
+            _showMsgLoading[sessionId] = false;
+          }
+          if (sessionMsgs.isNotEmpty) {
+            sessionMsgs.last.isSent = true;
+          }
           if (chunk.text.isNotEmpty && disableErrorMessage) {
             sessionMsgs.add(
               MsgModel(
@@ -356,7 +364,9 @@ class SdkProvider with ChangeNotifier {
           currentActiveRole = chunk.role;
 
           var sUpdatedAt = chunk.session?.updatedAt;
-          if (sUpdatedAt != null) sentAt = sUpdatedAt;
+          if (sUpdatedAt != null) {
+            sentAt = sUpdatedAt;
+          }
 
           var newMsg = MsgModel(
             null,
@@ -403,10 +413,14 @@ class SdkProvider with ChangeNotifier {
     bool checkConversationsLoaded = false,
   }) async {
     // Is initiateSession loaded && Conversations not been fetched already.
-    if (_isGetConversationsLoading || !_isInitialized) return null;
+    if (_isGetConversationsLoading || !_isInitialized) {
+      return null;
+    }
     // Use checkConversationsLoaded as a switch to check, if Conversations has loaded atleast once,
     // which is denoted by _hasLoadedConversations = true.
-    if (checkConversationsLoaded && _hasLoadedConversations) return null;
+    if (checkConversationsLoaded && _hasLoadedConversations) {
+      return null;
+    }
 
     // Nothing left to load
     if (!_hasNext && !refresh) {
@@ -507,7 +521,9 @@ class SdkProvider with ChangeNotifier {
   Future<UploadAttachmentsResponse?> uploadAttachments({
     required List<UploadFile> files,
   }) async {
-    if (_isUploadAttachmentsLoading || !_isInitialized) return null;
+    if (_isUploadAttachmentsLoading || !_isInitialized) {
+      return null;
+    }
 
     uploadProgress.value = 0.0;
     _isUploadAttachmentsLoading = true;
@@ -534,7 +550,9 @@ class SdkProvider with ChangeNotifier {
       }
       notifyListeners();
 
-      if (_isNewFilesUploaded) return _uploadAttachmentsResponse;
+      if (_isNewFilesUploaded) {
+        return _uploadAttachmentsResponse;
+      }
 
       // Upload
       final aResponse = await client.uploadAttachments(
@@ -563,8 +581,9 @@ class SdkProvider with ChangeNotifier {
     required String conversationId,
   }) async {
     _requireSession();
-    if (_isReopenTicketsLoading[conversationId] == true || !_isInitialized)
+    if (_isReopenTicketsLoading[conversationId] == true || !_isInitialized) {
       return null;
+    }
 
     _isReopenTicketsLoading[conversationId] = true;
     notifyListeners();
@@ -606,7 +625,9 @@ class SdkProvider with ChangeNotifier {
       return;
     }
 
-    if (_getConversionMsgesSockLoading[conversationId] == true) return;
+    if (_getConversionMsgesSockLoading[conversationId] == true) {
+      return;
+    }
 
     _getConversionMsgesSockLoading[conversationId] = true;
     notifyListeners();
@@ -679,7 +700,9 @@ class SdkProvider with ChangeNotifier {
       // Rejects socket updates triggered by the current streamed message.
       if (_streamedMsgID != null && messages.isNotEmpty) {
         final disableUpdate = _streamedMsgID == messages.last.id;
-        if (disableUpdate) return;
+        if (disableUpdate) {
+          return;
+        }
       }
 
       // Update messages
@@ -718,7 +741,9 @@ class SdkProvider with ChangeNotifier {
       return;
     }
 
-    if (_isInitConversationsSockLoading == true || !_isInitialized) return;
+    if (_isInitConversationsSockLoading == true || !_isInitialized) {
+      return;
+    }
 
     _isInitConversationsSockLoading = true;
     notifyListeners();
@@ -782,8 +807,9 @@ class SdkProvider with ChangeNotifier {
       final newIndexOfTheCurrentConvo = conversationsList.indexWhere(
         (convo) => convo.id == _currentSessionId,
       );
-      if (newIndexOfTheCurrentConvo != -1)
+      if (newIndexOfTheCurrentConvo != -1) {
         _selectedConversationIndex = newIndexOfTheCurrentConvo;
+      }
 
       notifyListeners();
     }

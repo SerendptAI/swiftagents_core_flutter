@@ -91,7 +91,9 @@ class _SwiftAgentsViewBodyState extends State<_SwiftAgentsViewBody>
       sdkProvider.createNewChat(enableMsgSocket: false);
     }
 
-    if (onlineProvider?.isOnline ?? false) init();
+    if (onlineProvider?.isOnline ?? false) {
+      init();
+    }
 
     onlineProvider?.onlineStream.listen((bool isOnline) async {
       if (isOnline) {
@@ -135,8 +137,9 @@ class _SwiftAgentsViewBodyState extends State<_SwiftAgentsViewBody>
 
   // Handles snapping when the user releases their finger
   void _handleDragEnd(DragEndDetails details, double maxSlide) {
-    if (_animationController.isAnimating || _animationController.isCompleted)
+    if (_animationController.isAnimating || _animationController.isCompleted) {
       return;
+    }
 
     // Snap based on swipe velocity or how far they dragged (past 50% threshold)
     if (details.velocity.pixelsPerSecond.dx > 365) {

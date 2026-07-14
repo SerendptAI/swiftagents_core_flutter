@@ -5,12 +5,8 @@
 SwiftAgents core flutter package for embedding AI support agents into Android, and iOS applications.
 
 ---
+<!-- video -->
 
-https://github.com/user-attachments/assets/4043cdf1-5cf7-42f6-a45e-df180514287f
-<!-- <video autoplay muted loop width="100%" preload="metadata">
-  <source src="assets/videos/agent_001.mp4" type="video/mp4" />
-  Your browser does not support the video tag.
-</video> -->
 
 ## Getting Started
 
@@ -62,35 +58,6 @@ In `ios/Runner/Info.plist`, add these usage descriptions:
 </plist>
 ```
 
-<!-- ### pubspec.yaml
-
-The SDK requires the following dependencies in your host app's `pubspec.yaml`:
-
-```yaml
-dependencies:
-  flutter:
-    sdk: flutter
-  flutter_svg: ^2.3.0
-  marqueer: ^2.5.0
-  rive: ^0.14.7
-  dio: ^5.9.2
-  provider: ^6.1.5+1
-  logger: ^2.7.0
-  cached_network_image: ^3.4.1
-  internet_connection_checker: ^3.0.1
-  enhanced_paginated_view: ^2.0.3
-  permission_handler: ^12.0.3
-  device_info_plus: ^12.4.0
-  image_picker: ^1.2.2
-  file_picker: 10.3.10
-  shimmer: ^3.0.0
-  crypto: ^3.0.7
-## Quick Start
-
-Initialize the SDK in your `main.dart`:
-
---- -->
-
 ## Quick Start
 
 initiate SwiftAgents in `main.dart`:
@@ -135,32 +102,11 @@ FloatingActionButton(
 
 ```dart
 SwiftAgentsView(
-    theme: SwiftAgentsThemeData.dark(),
     sdkContext: sdkContext,
 ),
 ```
 
 ---
-
-## Theming
-
-Optional theming is supported. Customize the UI with `SwiftAgentsThemeData`:
-
-```dart
-SwiftAgentsView(
-    theme: SwiftAgentsThemeData.dark(),
-    sdkContext: sdkContext,
-),
-```
-
-Or use the light theme:
-
-```dart
-SwiftAgentsView(
-    theme: SwiftAgentsThemeData.light(),
-    sdkContext: sdkContext,
-),
-```
 ## Theming
 
 SwiftAgents supports light, dark, and custom themes through `SwiftAgentsThemeData`.
@@ -230,7 +176,7 @@ You may also use network images, SVG widgets, animated widgets, user's profile, 
 
 ## Troubleshooting
 
-- If `SwiftAgentsView` fails to load, confirm `SwiftAgentsCore.init(...)` completed properly.
+- If `SwiftAgentsView` fails to load, confirm `SwiftAgentsCore.init(...)` method has the `companyId` and `apiKey`.
 - If camera/gallery access is blocked, verify your Android manifest and iOS `Info.plist` entries.
 - If uploads fail, confirm storage permissions are granted for the device OS version.
 

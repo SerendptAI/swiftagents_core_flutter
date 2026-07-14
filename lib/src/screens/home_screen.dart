@@ -101,8 +101,10 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ],
         ),
-        if (showReopenTicket)
-          Align(alignment: Alignment.bottomCenter, child: ReopenTicket()),
+        Visibility(
+          visible: showReopenTicket,
+          child: Align(alignment: Alignment.bottomCenter, child: ReopenTicket()),
+        ),
       ],
     );
   }

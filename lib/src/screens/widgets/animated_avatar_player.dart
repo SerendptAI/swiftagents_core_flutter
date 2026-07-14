@@ -23,7 +23,9 @@ class _AnimatedAvatarPlayerState extends State<AnimatedAvatarPlayer> {
   void initRive() async {
     final file = SwiftAgentsCore.avatarFile;
 
-    if (file == null) return;
+    if (file == null) {
+      return;
+    }
 
     controller = RiveWidgetController(file);
 
