@@ -1,12 +1,12 @@
-![Company Logo](assets/images/logo.png)
+![SwiftAgents Logo](https://github.com/user-attachments/assets/24906828-76d4-4da5-80f6-85720f266d7a)
 
 # SwiftAgents Core SDK
 
 SwiftAgents core flutter package for embedding AI support agents into Android, and iOS applications.
 
 ---
-<!-- video -->
-
+<!-- Demo video -->
+![SwiftAgents demo](https://github.com/user-attachments/assets/dcc2974b-7dfd-461e-95d6-97ceb5a5d4f7)
 
 ## Getting Started
 
