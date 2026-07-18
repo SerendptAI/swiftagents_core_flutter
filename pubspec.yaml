@@ -1,6 +1,6 @@
 name: swift_agents_core
 description: "Flutter package for SwiftAgents customer support ai services."
-version: 0.8.1
+version: 0.8.1+1
 repository: https://github.com/SerendptAI/swiftagents_core_flutter
 homepage: https://swiftagents.org
 

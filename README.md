@@ -64,7 +64,7 @@ initiate SwiftAgents in `main.dart`:
 
 ```dart
 import 'package:flutter/material.dart';
-import 'package:swift_agents_core/swift_agents.dart';
+import 'package:swift_agents_core/swift_agents_core.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();

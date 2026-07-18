@@ -150,6 +150,7 @@ class SdkProvider with ChangeNotifier {
   /// 1. Create a new chat
   void createNewChat({required bool enableMsgSocket}) {
     final id = const Uuid().v4();
+    // final id = 'sdk_test_4';
     _currentSessionId = id;
     _chatSessions[id] = [];
     _selectedConversationIndex = null;
